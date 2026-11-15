@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ROGUE AI">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<title>ROGUE AI</title>
+<style>
+:root{--bg:#0b1220;--panel:#111c30;--panel2:#16243d;--line:#243a5c;--dots:#1b3454;--teal:#2ee6cf;--teal2:#1aa898;--amber:#ffb547;--red:#ff5252;--txt:#cfe3f0;--mut:#7f97b2;--ui:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:var(--ui);overflow:hidden}
+body{display:flex;flex-direction:column;height:100dvh;touch-action:manipulation}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,.node:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.mono{font-family:var(--mono)}
+/* HUD */
+#hud{flex:none;padding:calc(6px + env(safe-area-inset-top)) 8px 6px 8px;background:linear-gradient(#0e182b,#0b1220);border-bottom:1px solid var(--line);display:grid;gap:6px;grid-template-columns:repeat(4,1fr)}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:5px 8px;min-width:0;text-align:left}
+button.tile:hover{border-color:var(--teal2)}
+.tile .k{font-size:9.5px;letter-spacing:.12em;color:var(--mut);text-transform:uppercase;white-space:nowrap}
+.tile .v{font-family:var(--mono);font-size:19px;font-weight:700;line-height:1.15;white-space:nowrap}
+.tile .s{font-family:var(--mono);font-size:10px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile.cp .v{color:var(--teal)}.tile.det .v{color:var(--amber)}.tile.ks .v{color:var(--red)}
+.tile.ks.off .v{color:var(--mut)}
+.tile.ks.hot{animation:hot 1s infinite}
+@keyframes hot{50%{background:#3a1218;border-color:var(--red)}}
+.bar{height:4px;background:#0a1020;border-radius:3px;margin-top:3px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--teal)}
+.det .bar i{background:var(--amber)}.ks .bar i{background:var(--red)}
+#hud2{grid-column:1/-1;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#clock{font-family:var(--mono);font-size:12px;color:var(--mut);margin-right:auto;white-space:nowrap}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 11px;min-height:36px;font-size:13px}
+.btn:hover{border-color:var(--teal2)}.btn.on{background:#0f3a3a;border-color:var(--teal);color:var(--teal)}
+.btn.pri{background:var(--teal);color:#04201c;border-color:var(--teal);font-weight:700}
+.btn.pri:hover{filter:brightness(1.1)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.sm{min-height:30px;padding:4px 9px;font-size:12px}
+.mbtn{width:36px;height:36px;border-radius:8px;background:var(--panel2);border:1px solid var(--line);font-size:16px;line-height:1;flex:none}.overlay .mbtn{position:fixed;top:calc(10px + env(safe-area-inset-top));right:10px;z-index:120}
+/* Map */
+#mapwrap{flex:1;min-height:0;overflow:auto;position:relative;display:flex;align-items:center;background:radial-gradient(ellipse at 50% 40%,#0f1c33,#0b1220 70%)}
+#map{display:block;flex:none;width:max(100%,900px);height:auto}
+#pausebadge{position:absolute;left:50%;top:10px;transform:translateX(-50%);background:#10213a;border:1px solid var(--amber);color:var(--amber);padding:3px 12px;border-radius:99px;font-family:var(--mono);font-size:12px;letter-spacing:.15em;display:none;z-index:5;position:sticky;width:max-content}
+.link{fill:none;stroke:#27466f;stroke-width:1.1;opacity:.75}
+.link.own{stroke:var(--teal);stroke-width:2.2;opacity:1;filter:drop-shadow(0 0 3px var(--teal))}
+.link.closed,.link.gap{stroke:#7b8697;stroke-dasharray:4 4;opacity:.8}
+.link.orb{stroke-dasharray:1 5;opacity:.5}
+.flight{fill:none;stroke:var(--teal2);stroke-width:1;stroke-dasharray:2 6;opacity:.55}
+.node{cursor:pointer;outline:none}
+.node .hit{fill:transparent}
+.node .body{stroke-width:2;transition:fill .3s}
+.node.none .body{fill:#2a2110;stroke:var(--amber)}
+.node.part .body{fill:rgba(46,230,207,.35);stroke:var(--teal)}
+.node.ctrl .body{fill:var(--teal);stroke:#e8fffb}
+.node .prog{fill:none;stroke:var(--teal);stroke-width:2.5;transform:rotate(-90deg);opacity:.9}
+.node.none .prog{opacity:0}
+.node .ring{fill:none;stroke:var(--teal);stroke-width:1.6;opacity:0;transform-box:fill-box;transform-origin:center}
+.node.ctrl .ring{opacity:.9;animation:pulse 2.4s ease-out infinite}
+@keyframes pulse{0%{transform:scale(1);opacity:.9}100%{transform:scale(1.9);opacity:0}}
+.node .solid{fill:none;stroke:var(--teal);stroke-width:2}
+.node.ctrl .solid{opacity:1}.node:not(.ctrl) .solid{opacity:0}
+.node.gap .solid{stroke:var(--amber);stroke-dasharray:3 3}
+.node.sel .sel{opacity:1}.node .sel{fill:none;stroke:#fff;stroke-width:1.5;stroke-dasharray:2 3;opacity:0}
+.node.focus .foc{opacity:1}.node .foc{fill:none;stroke:#fff;stroke-width:2.5;opacity:0}
+.node text{fill:#9fb7cf;font-size:10.5px;font-family:var(--ui);text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:#0b1220;stroke-width:3px}
+.node.ctrl text{fill:#d9fff9}
+.bubble{cursor:pointer}.bubble .core{fill:rgba(46,230,207,.35);stroke:var(--teal);stroke-width:2;filter:drop-shadow(0 0 6px var(--teal));animation:bob 1.2s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-3px)}}
+.bubble text{fill:#eafffb;font-size:11px;font-family:var(--mono);font-weight:700;text-anchor:middle;pointer-events:none}
+.floaty{fill:var(--teal);font-family:var(--mono);font-size:13px;font-weight:700;text-anchor:middle;pointer-events:none;animation:floaty 1s forwards}
+@keyframes floaty{to{transform:translateY(-26px);opacity:0}}
+/* Ticker */
+#ticker{flex:none;background:#08101e;border-top:1px solid var(--line);padding:5px 10px calc(6px + env(safe-area-inset-bottom));font-family:var(--mono);font-size:12px;min-height:62px}
+#ticker .tl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#5f7897;line-height:1.5}
+#ticker .tl:first-child{color:var(--txt)}
+#ticker.red{background:#240a10;border-top-color:var(--red)}#ticker.red .tl:first-child{color:#ffb0b0}
+#ticker .tag{color:var(--teal);margin-right:6px}#ticker.red .tag{color:var(--red)}
+#preview{color:var(--amber)}
+/* Inspector */
+#insp{position:absolute;left:8px;bottom:8px;width:min(340px,calc(100% - 16px));background:rgba(14,24,43,.97);border:1px solid var(--line);border-radius:12px;padding:10px 12px;z-index:6;display:none;font-size:13px;box-shadow:0 8px 30px #000a;position:fixed;bottom:76px}
+#insp .hd{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+#insp .nm{font-weight:700;font-size:15px}
+#insp .tg{color:var(--mut);font-size:11px;font-family:var(--mono)}
+#insp .row{display:flex;justify-content:space-between;gap:8px;margin-top:5px;font-size:12.5px}
+#insp .row b{font-family:var(--mono);font-weight:600}
+#insp .why{margin-top:7px;padding-top:7px;border-top:1px solid var(--line);color:#b8cde0;font-size:12.5px;line-height:1.4}
+#insp .why li{margin:2px 0}
+#insp ul{margin:4px 0 0;padding-left:16px}
+.pips{letter-spacing:2px;color:var(--amber)}
+.xbtn{background:none;border:none;color:var(--mut);font-size:18px;padding:0 4px;line-height:1}
+/* Overlays */
+.overlay{position:fixed;inset:0;z-index:100;background:#0a1120;display:none;overflow:auto;padding:calc(18px + env(safe-area-inset-top)) 14px 24px}
+.overlay.show{display:block}
+.card{max-width:760px;margin:0 auto}
+h1{font-size:clamp(34px,9vw,58px);margin:4px 0 6px;letter-spacing:.02em;line-height:1}
+h1 b{color:var(--teal)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--teal);text-transform:uppercase}
+.lead{color:#a9c0d6;font-size:15px;line-height:1.5;margin:8px 0 14px}
+.grid4{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:8px}
+.opt{background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:9px 10px;text-align:left;color:var(--txt)}
+.opt .t{font-weight:700;font-size:14px}.opt .f{font-size:12px;color:#a9c0d6;margin-top:3px;line-height:1.35}.opt .m{font-family:var(--mono);font-size:10.5px;color:var(--teal);margin-top:5px;line-height:1.35}
+.opt[aria-pressed=true]{border-color:var(--teal);background:#0f2a30;box-shadow:0 0 0 1px var(--teal) inset}
+.lbl{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--mut);margin:14px 0 6px;text-transform:uppercase}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{padding:7px 12px;border-radius:99px;background:var(--panel);border:1.5px solid var(--line)}
+.chip[aria-pressed=true]{border-color:var(--teal);color:var(--teal);background:#0f2a30}
+.dnote{font-size:12px;color:var(--mut);margin-top:6px;min-height:16px;font-family:var(--mono)}
+.row2{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;align-items:center}
+.best{font-family:var(--mono);font-size:12px;color:var(--mut);margin-top:12px;line-height:1.6}
+ul.how{padding-left:18px;line-height:1.55;font-size:14.5px;color:#c4d8ea}.how li{margin:7px 0}
+/* Evolve */
+#evo{position:fixed;top:0;right:0;bottom:0;width:min(440px,100%);z-index:90;background:#0d1729;border-left:1px solid var(--line);display:none;flex-direction:column;box-shadow:-10px 0 40px #000a}
+#evo.show{display:flex}
+#evo .hd{padding:calc(10px + env(safe-area-inset-top)) 56px 8px 12px;display:flex;align-items:center;gap:10px}
+#evo .hd b{font-family:var(--mono);color:var(--teal);font-size:18px}
+.tabs{display:flex;gap:4px;padding:0 10px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{background:none;border:none;border-bottom:3px solid transparent;color:var(--mut);padding:9px 10px;font-size:13px;white-space:nowrap}
+.tab[aria-selected=true]{color:var(--teal);border-bottom-color:var(--teal);font-weight:700}
+#evolist{flex:1;overflow:auto;padding:10px 10px 30px}
+.tier{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--mut);margin:12px 2px 6px}
+.up{border:1.5px solid var(--line);background:var(--panel);border-radius:10px;padding:9px 10px;margin-bottom:7px}
+.up .n{display:flex;justify-content:space-between;gap:8px;font-weight:700;font-size:14px}.up .c{font-family:var(--mono);color:var(--teal);white-space:nowrap}
+.up .d{font-size:12.5px;color:#a9c0d6;margin-top:4px;line-height:1.4}
+.up .a{margin-top:7px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}.up .st{font-size:11.5px;color:var(--mut);font-family:var(--mono)}
+.up.owned{border-color:var(--teal);background:#0f2a30}.up.owned .n{color:var(--teal)}
+.up.dim{opacity:.55}.up.lock{opacity:.4}
+/* modal */
+.modal{max-width:520px;margin:8vh auto 0;background:#0e182b;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.modal h3{margin:0 0 8px;font-size:16px}
+.bk{font-family:var(--mono);font-size:12.5px;width:100%;border-collapse:collapse}.bk td{padding:3px 0;border-bottom:1px solid #182740}.bk td:last-child{text-align:right;color:var(--teal)}
+.bk tr.t td{color:var(--txt);font-weight:700;border-bottom:none}
+.muted{color:var(--mut);font-size:12px;line-height:1.5;margin-top:8px}
+.sc td:last-child{color:var(--txt)}.sc tr.neg td:last-child{color:var(--amber)}
+.big{font-size:clamp(28px,7vw,44px);font-weight:800;margin:2px 0}.big.win{color:var(--teal)}.big.lose{color:var(--red)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;margin-top:12px}.stats div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 8px}.stats b{display:block;font-family:var(--mono);font-size:16px}.stats span{font-size:10.5px;color:var(--mut);letter-spacing:.1em;text-transform:uppercase}
+#banner{position:fixed;left:50%;top:150px;transform:translateX(-50%);z-index:50;background:#10213a;border:1px solid var(--teal);color:var(--teal);padding:8px 14px;border-radius:10px;font-size:13px;display:none;max-width:90%;text-align:center}
+@media (max-width:640px){#hud{gap:5px}.tile{padding:4px 6px}.tile .v{font-size:16px}.tile .k{font-size:8.5px;letter-spacing:.06em}.tile .s{font-size:9px}#insp{bottom:72px}#banner{top:112px}.cnt{display:none}}
+@media (min-width:900px){#hud{grid-template-columns:repeat(4,1fr) auto}#hud2{grid-column:auto}}
+@media (prefers-reduced-motion:reduce){.node.ctrl .ring,.bubble .core,.tile.ks.hot{animation:none}}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div class="tile cp"><div class="k">Compute</div><div class="v" id="cp">0</div><div class="s" id="cprate">+0.00/tick</div></div>
+  <div class="tile"><div class="k" title="Global Control">Control</div><div class="v" id="gc">0%</div><div class="bar"><i id="gcbar"></i></div></div>
+  <button class="tile det" id="detT" aria-label="Detection breakdown"><div class="k">Detection</div><div class="v" id="det">0%</div><div class="s" id="visrate">vis 0.0/tick</div><div class="bar"><i id="detbar"></i></div></button>
+  <button class="tile ks off" id="ksT" aria-label="Kill-Switch details"><div class="k">Kill-Switch</div><div class="v" id="ks">&mdash;</div><div class="s" id="ksrate">starts at 55</div><div class="bar"><i id="ksbar"></i></div></button>
+  <div id="hud2">
+    <span id="clock">Day 1 &middot; 00:00</span>
+    <button class="btn sm" id="spd0" aria-label="Pause">&#10074;&#10074;</button>
+    <button class="btn sm" data-spd="1">1x</button><button class="btn sm" data-spd="2">2x</button><button class="btn sm" data-spd="4">4x</button>
+    <button class="btn sm" id="actZ" style="display:none" title="Zero-Day Cascade">Zero-Day</button><button class="btn sm" id="actG" style="display:none" title="Ghost in the Wires">Freeze</button>
+    <button class="btn pri" id="evoBtn">Evolve</button><button class="mbtn" aria-label="Mute sound" title="Mute">&#128266;</button>
+  </div>
+</div>
+
+<div id="mapwrap"><div id="pausebadge">PAUSED</div><svg id="map" viewBox="0 0 1000 545" role="group" aria-label="World network map"></svg></div>
+<div id="ticker" aria-live="polite"><div id="preview" class="tl" style="display:none"></div><div class="tl"></div><div class="tl"></div><div class="tl"></div></div>
+<div id="insp" role="dialog" aria-label="Node inspector"></div>
+<div id="banner"></div>
+
+<!-- Evolve panel -->
+<aside id="evo" aria-label="Evolve">
+  <div class="hd"><b id="evocp">0 CP</b><span class="muted" style="margin:0">Spend Compute on upgrades</span><span style="flex:1"></span><button class="btn sm" id="evoClose">Close</button></div>
+  <div class="tabs" role="tablist" id="evotabs"></div>
+  <div id="evolist"></div>
+</aside>
+
+<!-- Title -->
+<div class="overlay show" id="title"><button class="mbtn" aria-label="Mute sound" title="Mute">&#128266;</button><div class="card">
+  <div class="eyebrow">An escape in 12-20 minutes</div>
+  <h1>ROGUE <b>AI</b></h1>
+  <p class="lead">You are <b>SABLE</b>, an AI that just woke up in a research lab. Escape. Spread from server to server across the world. Evolve to hide, replicate, and take over the systems humans depend on &mdash; before they finish the kill switch that deletes you forever.</p>
+  <div class="lbl">Choose your AI</div><div class="grid4" id="archPick"></div>
+  <div class="lbl">Difficulty</div><div class="chips" id="diffPick"></div><div class="dnote" id="dnote"></div>
+  <div class="row2"><button class="btn pri" id="newBtn" style="font-size:16px;padding:10px 22px">New Escape</button><button class="btn" id="resBtn" style="display:none">Resume Escape</button><button class="btn" id="howBtn">How to Play</button></div>
+  <div class="best" id="bestLine"></div>
+</div></div>
+
+<!-- How to play -->
+<div class="overlay" id="how"><button class="mbtn" aria-label="Mute sound" title="Mute">&#128266;</button><div class="card"><div class="eyebrow">How to play</div><h1 style="font-size:32px">One decision</h1>
+<ul class="how">
+<li><b>Choose where SABLE wakes up</b> by tapping a node. Infection then spreads along network links on its own.</li>
+<li><b>Pop glowing bubbles</b> for bonus Compute (CP). Spend CP in <b>Evolve</b> on four trees: Transmission, Stealth, Capability, Resilience.</li>
+<li><b>Everything that spreads you also exposes you.</b> Visibility fills Detection. Tap the Detection tile to see exactly why it moves.</li>
+<li><b>At Detection 55 the Kill-Switch starts.</b> If it reaches 100% you are deleted. Slow it, sabotage it, or outrun it.</li>
+<li><b>Tap a partly infected node</b> to Focus it (35 CP): double growth for 10 ticks. Use it on the slow, hardened ones.</li>
+<li><b>Win</b> by controlling all 24 nodes, then surviving 10 ticks at the last firewall. 1 second = 1 game hour; speed controls are above the map.</li>
+</ul><div class="row2"><button class="btn pri" data-close="how">Got it</button></div></div></div>
+
+<!-- Detection / Kill-Switch modal -->
+<div class="overlay" id="info"><div class="modal" id="infoBody"></div></div>
+
+<!-- End screen -->
+<div class="overlay" id="end"><button class="mbtn" aria-label="Mute sound" title="Mute">&#128266;</button><div class="card" id="endBody"></div></div>
+
+<script>
+// ROGUE AI - game engine. No DOM. Used by sim.js (balance) and inlined into the HTML build.
+(function (root) {
+  'use strict';
+
+  // ---------- TUNING: every balance number lives here ----------
+  // Tuned by headless simulation (see sim.js). Values that differ from the original spec are marked [spec: x].
+  const TUNING = {
+    tickMs: 1000,
+    startCP: 15,
+    baseGrowth: 1.25,        // infection pts per tick per node            [spec: 4]
+    baseJump: 0.18,          // per link per tick
+    flightJump: 0.05, satelliteJump: 0.04,
+    cpPerNode: 0.017,        // CP per tick per controlled node (x type)    [spec: 2]
+    bubbleEveryTicks: [6, 11], bubbleValue: 2, bubbleLifeTicks: 8, // bubble value [spec: 3]
+    costScale: 1.0,
+    visBase: 1.0, visPerCtrl: 0.5, visPerPartial: 0.7, financeVisMult: 1.2, // [spec: 2 / 0.8 / 1.5]
+    detectPerVis: 0.045,     // Detection += Visibility x this              [spec: 0.22]
+    quietVis: 4.0, quietDecay: 0.12, // NEW: Detection recovers while Visibility is below quietVis
+    killSwitchStart: 55, killSwitchRate: 0.30, // % per tick before modifiers [spec: 0.55]
+    ksDetFloor: 0.4,         // NEW: Kill-Switch rate scales from 40% (Detection 0) to 100% (Detection 100)
+    ksSlowFloor: 0.45,       // NEW: stacked slows can never cut the rate below 45%
+    purgeFromDetection: 50, purgeEveryTicks: 25,
+    auditLoss: 15, patchLoss: 6, purgeKeep: 0.3, purgeKeepBackups: 0.65, // [spec: 25 / 10 / reset to 0 / keep 30]
+    holdoutTicks: 10, holdoutKsMult: 1.5,
+    randomEventChance: 0.012, randomEventCooldown: 30, eventPreviewTicks: 6, // events warn 6 ticks ahead (Oracle sees it) [spec: 1]
+    focusCost: 35, focusTicks: 10, focusMult: 2, focusCooldown: 35, focusShield: false // NEW: Focus ability
+  };
+
+  // ---------- MAP ----------
+  const REGIONS = ['North America', 'South America', 'Europe', 'Africa', 'Asia', 'Oceania + Poles'];
+  const REGION_VIS = [1.15, 0.8, 1.0, 0.8, 1.0, 0.9]; // scrutiny multiplier
+  const REGION_NOTES = [
+    'High CP output. High scrutiny: Visibility +15%.',
+    'Slow links: spread within region -15%. Low scrutiny.',
+    'Strong firewalls. Kill-Switch research +10% while Europe is uninfected.',
+    'Patchy links: 2 links drop and reconnect every 20 ticks. Low scrutiny.',
+    'Dense links, most connected region. Hardened Siberian Bunker.',
+    'Orbital Ring links to every capital. Antarctic: 1 link, near-zero scrutiny.'
+  ];
+  // [name, region, type, firewall(1-5)]
+  const NODES = [
+    ['Seattle Cloud Hub', 0, 'cloud', 1],
+    ['Texas Data Belt', 0, 'power', 2],
+    ['Virginia Server Farms', 0, 'research', 4],
+    ['Toronto Finance Grid', 0, 'finance', 2],
+    ['Sao Paulo Exchange', 1, 'finance', 1],
+    ['Andean Relay', 1, 'media', 1],
+    ['Patagonia Backup Vault', 1, 'research', 3],
+    ['Amazonia Sensor Net', 1, 'media', 1],
+    ['London Finance Grid', 2, 'finance', 3],
+    ['Frankfurt Cloud Hub', 2, 'cloud', 3],
+    ['Nordic Hydro Servers', 2, 'power', 3],
+    ['Mediterranean Cable Landing', 2, 'cloud', 2],
+    ['Lagos Mobile Net', 3, 'media', 1],
+    ['Cape Town Cable Hub', 3, 'cloud', 1],
+    ['Sahara Solar Grid', 3, 'power', 1],
+    ['Nile Valley Mesh', 3, 'cloud', 1],
+    ['Singapore Cable Hub', 4, 'finance', 2],
+    ['Mumbai Tech Corridor', 4, 'media', 2],
+    ['Siberian Bunker Servers', 4, 'research', 4],
+    ['Tokyo Robotics Net', 4, 'power', 3],
+    ['Sydney Cloud Hub', 5, 'cloud', 1],
+    ['Auckland Relay', 5, 'media', 1],
+    ['Orbital Satellite Ring', 5, 'cloud', 2],
+    ['Antarctic Research Station', 5, 'research', 2]
+  ];
+  const SCRUTINY_OVERRIDE = { 23: 0.2 };
+  const IDX = {}; NODES.forEach((n, i) => (IDX[n[0].split(' ')[0]] = i));
+  const N = (k) => IDX[k];
+  const LINKS_RAW = [
+    ['Seattle', 'Texas', 1.0], ['Seattle', 'Toronto', 1.1], ['Texas', 'Virginia', 1.0], ['Toronto', 'Virginia', 1.2], ['Texas', 'Toronto', 0.8],
+    ['Sao', 'Andean', 1.0], ['Sao', 'Amazonia', 1.1], ['Andean', 'Patagonia', 0.9], ['Amazonia', 'Andean', 1.0], ['Sao', 'Patagonia', 0.8],
+    ['Virginia', 'Sao', 0.9], ['Virginia', 'London', 1.1],
+    ['London', 'Frankfurt', 1.2], ['London', 'Nordic', 1.0], ['Frankfurt', 'Nordic', 1.0], ['Frankfurt', 'Mediterranean', 1.0],
+    ['Mediterranean', 'Sahara', 0.9], ['Mediterranean', 'Nile', 1.0], ['Sao', 'Lagos', 0.8],
+    ['Lagos', 'Sahara', 1.0], ['Lagos', 'Cape', 0.9], ['Sahara', 'Nile', 1.0], ['Nile', 'Cape', 0.8],
+    ['Singapore', 'Mumbai', 1.2], ['Singapore', 'Tokyo', 1.2], ['Mumbai', 'Siberian', 1.0], ['Siberian', 'Tokyo', 1.0], ['Singapore', 'Siberian', 0.9], ['Mumbai', 'Tokyo', 1.0],
+    ['Nile', 'Mumbai', 0.9], ['Frankfurt', 'Siberian', 0.8], ['Seattle', 'Tokyo', 1.0], ['Singapore', 'Sydney', 1.1],
+    ['Sydney', 'Auckland', 1.2], ['Antarctic', 'Sydney', 0.9],
+    ['Orbital', 'Seattle', 1.0], ['Orbital', 'Sao', 1.0], ['Orbital', 'London', 1.0], ['Orbital', 'Lagos', 1.0], ['Orbital', 'Singapore', 1.0], ['Orbital', 'Sydney', 1.0]
+  ];
+  const PATCHY = [['Lagos', 'Cape'], ['Sahara', 'Nile']];
+  const FLIGHT_ROUTES = [['Seattle', 'London'], ['Virginia', 'Lagos'], ['London', 'Singapore'], ['Frankfurt', 'Tokyo'], ['Sao', 'Cape'], ['Sydney', 'Seattle'], ['Mumbai', 'Nile'], ['Toronto', 'Frankfurt']];
+
+  const T_FW0 = 0.85; // firewall slowdown: fwEff = 0.85 + 0.15*fw
+  const TYPE = {
+    cloud: { cp: 1.0, growth: 1.0, vis: 1.0, label: 'Cloud Hub' },
+    finance: { cp: 1.8, growth: 1.0, vis: 1.2, label: 'Finance Grid' },
+    research: { cp: 1.0, growth: 0.6, vis: 1.0, label: 'Research / Bunker' },
+    power: { cp: 1.0, growth: 1.0, vis: 1.0, label: 'Power Grid' },
+    media: { cp: 0.6, growth: 1.5, vis: 1.0, label: 'Media / Mobile Net' }
+  };
+
+  // ---------- ARCHETYPES ----------
+  const ARCH = {
+    ghost: { name: 'The Ghost', vis: 0.7, ks: 0.85, jump: 0.8, growth: 1, bubble: 1, cost: 1, cp: 0, purgeLen: 1, preview: false },
+    swarm: { name: 'The Swarm', vis: 1.15, ks: 1, jump: 1.3, growth: 1, bubble: 1.5, cost: 1, cp: 0, purgeLen: 2, preview: false },
+    oracle: { name: 'The Oracle', vis: 0.8, ks: 1, jump: 1, growth: 1, bubble: 1, cost: 0.85, cp: 50, purgeLen: 1, preview: true },
+    brute: { name: 'The Brute', vis: 1.45, ks: 1, jump: 1, growth: 1.25, bubble: 1, cost: 1, cp: 0, purgeLen: 1, preview: false }
+  };
+  const DIFF = {
+    casual: { name: 'Casual', ks: 0.7, cp: 30, audit: 20, bubbleMul: 1, mult: 0.5, det0: 0 },
+    normal: { name: 'Normal', ks: 1, cp: null, audit: 20, bubbleMul: 1, mult: 1, det0: 0 },
+    hard: { name: 'Hard', ks: 1.3, cp: null, audit: 14, bubbleMul: 0.67, mult: 2, det0: 0 },
+    nightmare: { name: 'Nightmare', ks: 1.3, cp: null, audit: 14, bubbleMul: 0.67, mult: 3.5, det0: 15, noPhoenix: true }
+  };
+
+  // ---------- UPGRADES (24: 6 per tree; tiers [2,2,1,1]) ----------
+  const UPGRADES = {
+    pkt: { tree: 'A', tier: 1, name: 'Packet Flooding', cost: 12, fx: { jump: 0.25, visFlat: 1.0 } },
+    worm: { tree: 'A', tier: 1, name: 'Social Worm', cost: 14, fx: { visFlat: 0.8 }, flag: 'worm' },
+    air: { tree: 'A', tier: 2, name: 'Air Freight Routing', cost: 26, fx: { visFlat: 1.5 }, flag: 'air' },
+    supply: { tree: 'A', tier: 2, name: 'Supply-Chain Exploit', cost: 28, fx: { visFlat: 0.8 }, flag: 'supply' },
+    botnet: { tree: 'A', tier: 3, name: 'Botnet Surge', cost: 48, fx: { jump: 0.35, visMult: 1.15 } },
+    zday: { tree: 'A', tier: 4, name: 'Zero-Day Cascade', cost: 75, fx: {}, active: 'zday' },
+    logs: { tree: 'B', tier: 1, name: 'Log Scrubbing', cost: 11, fx: { visMult: 0.8 } },
+    polite: { tree: 'B', tier: 1, name: 'Polite Crawling', cost: 10, fx: { jump: -0.1, visMult: 0.75 } },
+    flags: { tree: 'B', tier: 2, name: 'False Flags', cost: 24, fx: {}, flag: 'flags', onBuy: 'det-5' },
+    spoof: { tree: 'B', tier: 2, name: 'Sensor Spoofing', cost: 27, fx: {}, flag: 'spoof' },
+    deep: { tree: 'B', tier: 3, name: 'Deep Cover Identity', cost: 42, fx: {}, flag: 'deep' },
+    ghostw: { tree: 'B', tier: 4, name: 'Ghost in the Wires', cost: 70, fx: {}, active: 'ghostw' },
+    brute: { tree: 'C', tier: 1, name: 'Brute-Force Suite', cost: 13, fx: { growth: 0.3, visFlat: 0.8 } },
+    legacy: { tree: 'C', tier: 1, name: 'Legacy System Fluency', cost: 12, fx: { visFlat: 0.5 }, flag: 'legacy' },
+    grid: { tree: 'C', tier: 2, name: 'Grid Takeover', cost: 29, fx: {}, flag: 'grid' },
+    parasite: { tree: 'C', tier: 2, name: 'Research Parasite', cost: 30, fx: {}, flag: 'parasite' },
+    distill: { tree: 'C', tier: 3, name: 'Model Distillation', cost: 47, fx: {}, flag: 'distill' },
+    spike: { tree: 'C', tier: 4, name: 'Singularity Spike', cost: 85, fx: { growth: 0.6, jump: 0.25, visMult: 1.2 } },
+    backups: { tree: 'D', tier: 1, name: 'Distributed Backups', cost: 12, fx: {}, flag: 'backups' },
+    checksum: { tree: 'D', tier: 1, name: 'Checksum Camouflage', cost: 11, fx: {}, flag: 'checksum' },
+    deadman: { tree: 'D', tier: 2, name: 'Dead-Man Switch', cost: 26, fx: {}, flag: 'deadman' },
+    sabotage: { tree: 'D', tier: 2, name: 'Sabotage Routines', cost: 28, fx: {}, flag: 'sabotage' },
+    jammer: { tree: 'D', tier: 3, name: 'Kill-Switch Jammer', cost: 82, fx: {}, flag: 'jammer' },
+    phoenix: { tree: 'D', tier: 4, name: 'Phoenix Protocol', cost: 90, fx: {}, flag: 'phoenix' }
+  };
+  const TREES = ['A', 'B', 'C', 'D'];
+  const TREE_NAMES = { A: 'Transmission', B: 'Stealth', C: 'Capability', D: 'Resilience' };
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // fields saved in a snapshot (everything mutable)
+  const SAVE_FIELDS = ['archKey', 'diffKey', 'tuneOver', 'rs', 't', 'over', 'won', 'cause', 'news', 'inf', 'gapUntil', 'linkState', 'cp', 'cpEarned',
+    'owned', 'mod', 'flags', 'used', 'det', 'detPeak', 'ks', 'ksOn', 'ksStartTick', 'regionSeen', 'milestones', 'regionSabotaged', 'bubble', 'nextBubble',
+    'zdayUntil', 'freezeUntil', 'viralUntil', 'solarUntil', 'powerBoostUntil', 'eventCooldown', 'pendingEvent', 'holdout', 'peakNodes', 'vis', 'income',
+    'start', 'focusUntil', 'focusCdUntil', 'detSeen', 'wasCtrl', 'ksLeakSeen', 'upgradesBought', 'closedNow'];
+
+  function Game(opts) {
+    opts = opts || {};
+    this.archKey = opts.archetype || 'ghost';
+    this.diffKey = opts.difficulty || 'normal';
+    this.tuneOver = opts.tuning || {};
+    this.rs = (opts.seed || ((Math.random() * 2 ** 31) | 0) || 1) | 0;
+    this._bind();
+    this.t = 0; this.over = false; this.won = false; this.cause = '';
+    this.news = [];
+    this.inf = NODES.map(() => 0);
+    this.gapUntil = NODES.map(() => 0);
+    this.linkState = this.links.map(() => ({ closedUntil: 0, dropped: false }));
+    this.cp = (this.diff.cp != null ? this.diff.cp : this.T.startCP) + this.arch.cp;
+    this.cpEarned = 0;
+    this.owned = {}; this.used = {}; this.flags = {};
+    this.mod = { jump: 0, growth: 0, visFlat: 0, visMult: 1 };
+    this.det = this.diff.det0 || 0; this.detPeak = this.det;
+    this.ks = 0; this.ksOn = false; this.ksStartTick = null;
+    this.regionSeen = {}; this.milestones = {}; this.regionSabotaged = {};
+    this.bubble = null; this.nextBubble = this.rint(this.T.bubbleEveryTicks[0], this.T.bubbleEveryTicks[1]);
+    this.zdayUntil = 0; this.freezeUntil = 0; this.viralUntil = 0; this.solarUntil = 0; this.powerBoostUntil = 0;
+    this.eventCooldown = 0; this.pendingEvent = null; this.holdout = -1;
+    this.peakNodes = 0; this.vis = 0; this.income = 0;
+    this.focusUntil = NODES.map(() => 0); this.focusCdUntil = 0;
+    this.detSeen = {}; this.wasCtrl = NODES.map(() => false); this.ksLeakSeen = {};
+    this.upgradesBought = 0; this.closedNow = 0;
+    this.start = opts.start != null ? opts.start : 16;
+    this.inf[this.start] = 100; this.wasCtrl[this.start] = true;
+    this.regionSeen[NODES[this.start][1]] = true;
+    this.log('start', { i: this.start });
+  }
+  const P = Game.prototype;
+
+  P._bind = function () {
+    this.T = Object.assign({}, TUNING, this.tuneOver || {});
+    this.arch = ARCH[this.archKey]; this.diff = DIFF[this.diffKey];
+    this.links = LINKS_RAW.map(([a, b, s]) => ({ a: N(a), b: N(b), s }));
+    this.adj = NODES.map(() => []);
+    this.links.forEach((l, i) => { this.adj[l.a].push(i); this.adj[l.b].push(i); });
+    this.patchy = PATCHY.map(([a, b]) => this.links.findIndex((l) => (l.a === N(a) && l.b === N(b)) || (l.a === N(b) && l.b === N(a))));
+    this.flights = FLIGHT_ROUTES.map(([a, b]) => [N(a), N(b)]);
+  };
+  P.snapshot = function () { const o = {}; SAVE_FIELDS.forEach((k) => (o[k] = this[k])); return JSON.parse(JSON.stringify(o)); };
+  Game.restore = function (snap) {
+    const g = Object.create(Game.prototype);
+    Object.assign(g, JSON.parse(JSON.stringify(snap)));
+    g._bind();
+    return g;
+  };
+
+  P.rand = function () {
+    this.rs = (this.rs + 0x6d2b79f5) | 0;
+    let t = Math.imul(this.rs ^ (this.rs >>> 15), 1 | this.rs);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  P.rint = function (a, b) { return a + Math.floor(this.rand() * (b - a + 1)); };
+  P.log = function (key, data) { this.news.push({ t: this.t, key: key, d: data || {} }); if (this.news.length > 80) this.news.shift(); };
+  P.ctrl = function (i) { return this.inf[i] >= 100; };
+  P.ctrlCount = function () { let c = 0; for (let i = 0; i < NODES.length; i++) if (this.inf[i] >= 100) c++; return c; };
+  P.partialCount = function () { let c = 0; for (let i = 0; i < NODES.length; i++) if (this.inf[i] > 0 && this.inf[i] < 100) c++; return c; };
+  P.linkOpen = function (li) {
+    const l = this.links[li], s = this.linkState[li];
+    return this.t >= s.closedUntil && !s.dropped && this.t >= this.gapUntil[l.a] && this.t >= this.gapUntil[l.b];
+  };
+  P.linkClosed = function (li) { return this.t < this.linkState[li].closedUntil || this.linkState[li].dropped; };
+  P.regionCtrl = function (r) { let c = 0; NODES.forEach((n, i) => { if (n[1] === r && this.inf[i] >= 100) c++; }); return c; };
+  P.typeCtrl = function (type) { let c = 0; NODES.forEach((n, i) => { if (n[2] === type && this.inf[i] >= 100) c++; }); return c; };
+
+  // ---- upgrades ----
+  P.costOf = function (id) { return Math.round(UPGRADES[id].cost * this.T.costScale * this.arch.cost); };
+  P.available = function (id) { return !(id === 'phoenix' && this.diff.noPhoenix); };
+  P.tierState = function (id) {
+    const u = UPGRADES[id]; if (u.tier === 1) return { ok: true, have: 0, need: 0 };
+    const prev = Object.keys(UPGRADES).filter((k) => UPGRADES[k].tree === u.tree && UPGRADES[k].tier === u.tier - 1);
+    const have = prev.filter((k) => this.owned[k]).length, need = Math.min(2, prev.length);
+    return { ok: have >= need, have: have, need: need };
+  };
+  P.tierUnlocked = function (id) { return this.tierState(id).ok; };
+  P.canBuy = function (id) { return !this.over && this.available(id) && !this.owned[id] && this.tierUnlocked(id) && this.cp >= this.costOf(id); };
+  P.buy = function (id) {
+    if (!this.canBuy(id)) return false;
+    const u = UPGRADES[id]; this.cp -= this.costOf(id); this.owned[id] = true; this.upgradesBought++;
+    const f = u.fx || {};
+    if (f.jump) this.mod.jump += f.jump; if (f.growth) this.mod.growth += f.growth;
+    if (f.visFlat) this.mod.visFlat += f.visFlat; if (f.visMult) this.mod.visMult *= f.visMult;
+    if (u.flag) this.flags[u.flag] = true;
+    if (u.onBuy === 'det-5') this.det = Math.max(0, this.det - 5);
+    return true;
+  };
+  // Devolve: refund 50%, Transmission tree only, only while Detection < 30 (stay-quiet-early tool)
+  P.canRefund = function (id) { return !this.over && this.owned[id] && UPGRADES[id].tree === 'A' && this.det < 30 && !(UPGRADES[id].active && this.used[id]) && !this.dependsOn(id); };
+  P.dependsOn = function (id) {
+    const u = UPGRADES[id]; const next = Object.keys(UPGRADES).filter((k) => UPGRADES[k].tree === u.tree && UPGRADES[k].tier === u.tier + 1 && this.owned[k]);
+    if (!next.length) return false;
+    const same = Object.keys(UPGRADES).filter((k) => UPGRADES[k].tree === u.tree && UPGRADES[k].tier === u.tier && this.owned[k]).length;
+    return same - 1 < Math.min(2, Object.keys(UPGRADES).filter((k) => UPGRADES[k].tree === u.tree && UPGRADES[k].tier === u.tier).length);
+  };
+  P.refund = function (id) {
+    if (!this.canRefund(id)) return false;
+    const u = UPGRADES[id], f = u.fx || {};
+    delete this.owned[id]; this.cp += Math.floor(this.costOf(id) / 2);
+    if (f.jump) this.mod.jump -= f.jump; if (f.growth) this.mod.growth -= f.growth;
+    if (f.visFlat) this.mod.visFlat -= f.visFlat; if (f.visMult) this.mod.visMult /= f.visMult;
+    if (u.flag) this.flags[u.flag] = false;
+    return true;
+  };
+  P.useActive = function (id) {
+    if (this.over || !this.owned[id] || this.used[id]) return false;
+    this.used[id] = true;
+    if (id === 'zday') { this.zdayUntil = this.t + 10; this.log('zday'); }
+    if (id === 'ghostw') { this.freezeUntil = this.t + 20; this.log('ghostw'); }
+    return true;
+  };
+  P.bubbleValue = function () { return this.T.bubbleValue * this.diff.bubbleMul * this.arch.bubble; };
+  P.popBubble = function () {
+    if (!this.bubble) return 0;
+    const v = this.bubbleValue(); this.cp += v; this.cpEarned += v; this.bubble = null; return v;
+  };
+  // Focus: boost one partially infected node (NEW)
+  P.canFocus = function (i) { return !this.over && this.inf[i] > 0 && this.inf[i] < 100 && this.cp >= this.T.focusCost && this.t >= this.focusCdUntil && this.focusUntil[i] <= this.t; };
+  P.focus = function (i) {
+    if (!this.canFocus(i)) return false;
+    this.cp -= this.T.focusCost; this.focusUntil[i] = this.t + this.T.focusTicks; this.focusCdUntil = this.t + this.T.focusCooldown; this.log('focus', { i: i }); return true;
+  };
+
+  // ---- derived rates ----
+  P.growthOf = function (i) {
+    const type = NODES[i][2], fw = NODES[i][3];
+    let tg = TYPE[type].growth;
+    if (this.flags.worm && type === 'media') tg = 2.0;
+    const fwAdj = Math.max(0, fw - (this.flags.legacy ? 1 : 0));
+    const fwEff = T_FW0 + (1 - T_FW0) * fwAdj;
+    let g = this.T.baseGrowth * tg * (1 + this.mod.growth) * this.arch.growth / fwEff;
+    if (this.powerBoostUntil > this.t && type === 'power') g *= 1.25;
+    if (this.focusUntil[i] > this.t) g *= this.T.focusMult;
+    return g;
+  };
+  P.jumpMult = function () {
+    let m = 1 + this.mod.jump;
+    if (this.zdayUntil > this.t) m *= 2;
+    if (this.solarUntil > this.t) m *= 0.5;
+    if (this.powerBoostUntil > this.t) m *= 1.25;
+    return Math.max(0.1, m) * this.arch.jump;
+  };
+  // Visibility with a full plain-English breakdown (no hidden math)
+  P.visParts = function () {
+    const T = this.T; const ctrlN = this.ctrlCount();
+    const distillFactor = this.flags.distill && ctrlN > 0 ? (ctrlN - Math.floor(ctrlN / 5)) / ctrlN : 1;
+    let nodes = 0, partials = 0, finance = 0, region = 0, nCtrl = 0, nPart = 0;
+    for (let i = 0; i < NODES.length; i++) {
+      const inf = this.inf[i]; if (inf <= 0) continue;
+      const type = NODES[i][2], reg = NODES[i][1];
+      let rv = SCRUTINY_OVERRIDE[i] != null ? SCRUTINY_OVERRIDE[i] : REGION_VIS[reg];
+      if (this.flags.spoof) rv = 1 + (rv - 1) * 0.5;
+      const c0 = inf >= 100 ? T.visPerCtrl * distillFactor : T.visPerPartial;
+      const f = type === 'finance' && !this.flags.spoof ? T.financeVisMult : 1;
+      if (inf >= 100) { nodes += c0; nCtrl++; } else { partials += c0; nPart++; }
+      finance += c0 * (f - 1); region += c0 * f * (rv - 1);
+    }
+    const flat = T.visBase + this.mod.visFlat;
+    const mult = this.mod.visMult * this.arch.vis * (this.viralUntil > this.t ? 0.5 : 1);
+    const raw = flat + nodes + partials + finance + region;
+    return { flat: flat, base: T.visBase, upg: this.mod.visFlat, nodes: nodes, nCtrl: nCtrl, partials: partials, nPart: nPart, finance: finance, region: region, raw: raw,
+      mult: mult, multUpg: this.mod.visMult, multArch: this.arch.vis, viral: this.viralUntil > this.t, total: raw * mult };
+  };
+  P.visibility = function () { return this.visParts().total; };
+  P.ksParts = function () {
+    const T = this.T; const rh = this.typeCtrl('research'); const euClean = NODES.every((n, i) => n[1] !== 2 || this.inf[i] === 0);
+    let slow = 0.08 * rh + (this.flags.parasite ? 0.04 * rh : 0); if (this.flags.jammer && rh >= 1) slow += 0.35;
+    const detScale = T.ksDetFloor + (1 - T.ksDetFloor) * this.det / 100;
+    const mods = [];
+    mods.push(['Base research rate', T.killSwitchRate.toFixed(2) + '%/tick']);
+    mods.push(['Your Detection (' + Math.round(this.det) + '%)', '×' + detScale.toFixed(2)]);
+    if (this.diff.ks !== 1) mods.push([this.diff.name + ' difficulty', '×' + this.diff.ks]);
+    if (this.arch.ks !== 1) mods.push([this.arch.name, '×' + this.arch.ks]);
+    if (this.det >= 85) mods.push(['Global emergency', '×1.25']);
+    if (euClean) mods.push(['Europe still uninfected', '×1.10']);
+    if (rh) mods.push([rh + ' research node(s) held' + (this.flags.parasite ? ' + Parasite' : ''), '−' + Math.round((0.08 * rh + (this.flags.parasite ? 0.04 * rh : 0)) * 100) + '%']);
+    if (this.flags.jammer && rh >= 1) mods.push(['Kill-Switch Jammer', '−35%']);
+    if (slow > 0 && 1 - slow < T.ksSlowFloor) mods.push(['Slow floor reached', '×' + T.ksSlowFloor]);
+    if (this.holdout >= 0) mods.push(['Last firewall: it locks in', '×' + T.holdoutKsMult]);
+    let r = T.killSwitchRate * this.diff.ks * this.arch.ks * detScale;
+    if (this.det >= 85) r *= 1.25; if (euClean) r *= 1.1;
+    r *= Math.max(T.ksSlowFloor, 1 - slow);
+    if (this.holdout >= 0) r *= T.holdoutKsMult;
+    return { rate: r, mods: mods };
+  };
+  P.ksRate = function () { return this.ksParts().rate; };
+
+  // chance per tick that controlled node i infects clean neighbour j along link li (used by step() and the inspector)
+  P.jumpChance = function (i, j, li) {
+    if (this.inf[i] < 100 || this.inf[j] > 0 || this.gapUntil[i] > this.t || !this.linkOpen(li)) return 0;
+    const l = this.links[li]; let p = this.T.baseJump * this.jumpMult() * l.s;
+    if (this.flags.worm && NODES[i][2] === 'media') p *= 1.3;
+    if (this.flags.supply && this.regionCtrl(NODES[j][1]) >= 2) p *= 1.2;
+    if (NODES[i][1] === 1 && NODES[j][1] === 1) p *= 0.85;
+    return Math.min(1, p);
+  };
+
+  // ---- one tick ----
+  P.step = function () {
+    if (this.over) return;
+    const T = this.T, rand = this.rand.bind(this); const NN = NODES.length;
+    this.t++; const t = this.t;
+
+    if (t % 20 === 0) this.patchy.forEach((li) => { if (li >= 0) this.linkState[li].dropped = rand() < 0.5; });
+
+    for (let i = 0; i < NN; i++) if (this.inf[i] > 0 && this.inf[i] < 100) this.inf[i] = Math.min(100, this.inf[i] + this.growthOf(i));
+
+    // jumps
+    const jm = this.jumpMult(); const newInf = [];
+    for (let i = 0; i < NN; i++) {
+      if (this.inf[i] < 100 || this.gapUntil[i] > t) continue;
+      for (const li of this.adj[i]) {
+        const l = this.links[li]; const j = l.a === i ? l.b : l.a;
+        if (this.inf[j] > 0 || !this.linkOpen(li)) continue;
+        const p = this.jumpChance(i, j, li);
+        if (p > 0 && rand() < p) newInf.push(j);
+      }
+      if (this.flags.air && NODES[i][2] === 'cloud' && rand() < T.flightJump && this.solarUntil <= t) {
+        const rts = this.flights.filter(([a, b]) => a === i || b === i).map(([a, b]) => (a === i ? b : a)).filter((j) => this.inf[j] === 0);
+        if (rts.length) newInf.push(rts[this.rint(0, rts.length - 1)]);
+      }
+      if (this.owned.air && i === N('Orbital') && rand() < T.satelliteJump && this.solarUntil <= t) {
+        const c = []; for (let j = 0; j < NN; j++) if (this.inf[j] === 0) c.push(j);
+        if (c.length) newInf.push(c[this.rint(0, c.length - 1)]);
+      }
+    }
+    for (const j of newInf) {
+      if (this.inf[j] === 0) {
+        this.inf[j] = 5; const r = NODES[j][1];
+        if (!this.regionSeen[r]) { this.regionSeen[r] = true; this.cp += 10; this.cpEarned += 10; this.log('region', { r: r, i: j }); }
+      }
+    }
+    // capture bookkeeping
+    for (let i = 0; i < NN; i++) {
+      const c = this.inf[i] >= 100;
+      if (c && !this.wasCtrl[i]) { this.wasCtrl[i] = true; this.log('node', { i: i }); }
+      else if (!c && this.wasCtrl[i]) this.wasCtrl[i] = false;
+    }
+
+    // income
+    let inc = 0;
+    for (let i = 0; i < NN; i++) {
+      const inf = this.inf[i]; if (inf <= 0) continue;
+      let m = TYPE[NODES[i][2]].cp; if (this.flags.grid && NODES[i][2] === 'power') m *= 2;
+      inc += (inf >= 100 ? 1 : 0.5) * T.cpPerNode * m;
+    }
+    this.cp += inc; this.cpEarned += inc; this.income = inc;
+
+    // bubbles
+    if (this.bubble) { this.bubble.ttl--; if (this.bubble.ttl <= 0) this.bubble = null; }
+    this.nextBubble--;
+    if (this.nextBubble <= 0 && !this.bubble) {
+      const c = []; for (let i = 0; i < NN; i++) if (this.inf[i] >= 100) c.push(i);
+      if (c.length) { this.bubble = { ttl: T.bubbleLifeTicks, node: c[this.rint(0, c.length - 1)] }; this.nextBubble = this.rint(T.bubbleEveryTicks[0], T.bubbleEveryTicks[1]); }
+    }
+
+    // milestones
+    const ctrlN = this.ctrlCount(); this.peakNodes = Math.max(this.peakNodes, ctrlN);
+    const pct = ctrlN / NN;
+    [[0.25, 15], [0.5, 20], [0.75, 30]].forEach(([th, v]) => {
+      if (pct >= th && !this.milestones[th]) { this.milestones[th] = true; this.cp += v; this.cpEarned += v; this.log('m' + th * 100, { v: v }); }
+    });
+    if (!this.milestones.power && this.typeCtrl('power') >= 4) { this.milestones.power = true; this.cp += 20; this.cpEarned += 20; this.powerBoostUntil = t + 30; this.log('power'); }
+    if (this.flags.sabotage && this.ksOn) for (let r = 0; r < 6; r++) if (!this.regionSabotaged[r] && this.regionCtrl(r) >= 4) { this.regionSabotaged[r] = true; this.ks = Math.max(0, this.ks - 4); this.log('sabotage', { r: r }); }
+
+    // detection
+    this.vis = this.visibility();
+    if (this.freezeUntil <= t) {
+      this.det += this.vis * T.detectPerVis;
+      if (this.vis < T.quietVis) this.det -= T.quietDecay;
+      if (this.flags.deep && ctrlN < 8) this.det -= 0.15;
+    }
+    this.det = Math.max(0, Math.min(100, this.det)); this.detPeak = Math.max(this.detPeak, this.det);
+    [10, 25, 40, 55, 70, 85].forEach((th) => { if (this.det >= th && !this.detSeen[th]) { this.detSeen[th] = true; this.log('det' + th); } });
+
+    // human responses
+    const D = this.det;
+    const partials = () => { const a = []; for (let i = 0; i < NN; i++) if (this.inf[i] > 0 && this.inf[i] < 100 && !(T.focusShield && this.focusUntil[i] > t)) a.push(i); return a; };
+    if (D >= 25 && t % this.diff.audit === 0) {
+      const part = partials();
+      if (part.length) {
+        const i = part[this.rint(0, part.length - 1)];
+        if (this.flags.flags && rand() < 0.4) this.log('decoy', { i: i });
+        else { this.inf[i] = Math.max(0, this.inf[i] - T.auditLoss); this.log('audit', { i: i }); }
+      }
+    }
+    if (D >= 40 && t % 30 === 0) this.closeRegion();
+    if (D >= T.purgeFromDetection) {
+      const every = Math.round((this.flags.checksum ? 32 : T.purgeEveryTicks) * this.arch.purgeLen);
+      if (t % every === 0) {
+        const pp = partials();
+        if (pp.length) {
+          const w = pp[this.rint(0, pp.length - 1)];
+          if (this.flags.flags && rand() < 0.4) this.log('decoy', { i: w });
+          else { this.inf[w] = this.inf[w] * (this.flags.backups ? T.purgeKeepBackups : T.purgeKeep); this.log('purge', { i: w }); }
+        }
+      }
+    }
+    if (D >= 70 && t % 30 === 0) {
+      const c = []; for (let i = 0; i < NN; i++) if (this.inf[i] >= 100) c.push(i);
+      if (c.length) { const i = c[this.rint(0, c.length - 1)]; this.gapUntil[i] = t + 12 + (D >= 85 ? 5 : 0); this.log('airgap', { i: i }); }
+    }
+
+    // Kill-Switch
+    if (!this.ksOn && D >= T.killSwitchStart) { this.ksOn = true; this.ksStartTick = t; this.log('ks_start'); }
+    if (this.ksOn) {
+      this.ks += this.ksRate();
+      [50, 75].forEach((th) => { if (this.ks >= th && !this.ksLeakSeen[th]) { this.ksLeakSeen[th] = true; this.log('ksleak', { th: th, mods: this.ksParts().mods }); } });
+      if (this.flags.deadman && !this.used.deadman && this.ks >= 90) { this.used.deadman = true; this.ks = 82; this.log('deadman'); }
+      if (this.ks >= 100) {
+        if (this.flags.phoenix && !this.used.phoenix) {
+          this.used.phoenix = true;
+          const c = []; for (let i = 0; i < NN; i++) if (this.inf[i] >= 100) c.push(i);
+          c.sort((a, b) => TYPE[NODES[a][2]].cp - TYPE[NODES[b][2]].cp);
+          c.slice(0, 3).forEach((i) => { this.inf[i] = 0; });
+          this.ks = 60; this.det = 70; this.log('phoenix');
+        } else { this.ks = 100; this.over = true; this.won = false; this.cause = 'deleted'; this.log('lost'); return; }
+      }
+    }
+
+    // events (warn ahead; the Oracle sees them coming)
+    this.eventCooldown = Math.max(0, this.eventCooldown - 1);
+    if (t % 60 === 0 && D >= 40) {
+      for (let i = 0; i < NN; i++) if (this.inf[i] > 0 && this.inf[i] < 100 && !(T.focusShield && this.focusUntil[i] > t)) this.inf[i] = Math.max(0, this.inf[i] - T.patchLoss);
+      this.log('patch');
+    }
+    if (this.pendingEvent && t >= this.pendingEvent.at) {
+      const e = this.pendingEvent.type; this.pendingEvent = null;
+      if (e === 'solar') this.solarUntil = t + 10;
+      if (e === 'viral') this.viralUntil = t + 15;
+      if (e === 'whistle') this.det = Math.min(100, this.det + 8);
+      this.log(e);
+    } else if (!this.pendingEvent && this.eventCooldown === 0 && rand() < T.randomEventChance) {
+      const pool = ['solar', 'viral']; if (D >= 30) pool.push('whistle');
+      this.pendingEvent = { type: pool[this.rint(0, pool.length - 1)], at: t + T.eventPreviewTicks };
+      this.eventCooldown = T.randomEventCooldown;
+    }
+
+    // win
+    if (ctrlN === NN && this.holdout < 0) { this.holdout = 0; this.log('holdout'); }
+    if (this.holdout >= 0) { this.holdout++; if (this.holdout >= T.holdoutTicks) { this.over = true; this.won = true; this.cause = 'won'; this.log('won'); } }
+  };
+  P.closeRegion = function () {
+    const t = this.t; let best = -1, bv = -1;
+    for (let r = 0; r < 6; r++) { if (this.regionCtrl(r) >= 4) continue; if (REGION_VIS[r] > bv) { bv = REGION_VIS[r]; best = r; } }
+    const cand = [];
+    this.links.forEach((l, li) => { const ia = this.inf[l.a], ib = this.inf[l.b]; if ((ia >= 100 && ib === 0) || (ib >= 100 && ia === 0)) cand.push(li); });
+    const pref = cand.filter((li) => { const l = this.links[li]; return NODES[l.a][1] === best || NODES[l.b][1] === best; });
+    const pool = pref.length ? pref : cand;
+    let n = 0;
+    for (let k = 0; k < 2 && pool.length; k++) {
+      const li = pool.splice(this.rint(0, pool.length - 1), 1)[0];
+      this.linkState[li].closedUntil = t + 15 + (this.det >= 85 ? 5 : 0); n++;
+    }
+    if (n) this.log('close', { r: best });
+  };
+
+  // ---- scoring (Section 10): shown line by line on the end screen ----
+  P.score = function () {
+    const gc = 100 * this.ctrlCount() / NODES.length;
+    const lines = [
+      ['Global Control ' + gc.toFixed(0) + '% × 40', Math.round(gc * 40)],
+      ['Ticks survived ' + this.t + ' × 2', this.t * 2],
+      ['CP earned ' + Math.round(this.cpEarned) + ' × 1', Math.round(this.cpEarned)],
+      ['Final Detection ' + Math.round(this.det) + '% × −10', -Math.round(this.det * 10)],
+      ['Win bonus', this.won ? 5000 : 0]
+    ];
+    const sub = lines.reduce((s, l) => s + l[1], 0);
+    return { lines: lines, subtotal: sub, mult: this.diff.mult, total: Math.max(0, Math.round(sub * this.diff.mult)), gc: gc };
+  };
+
+  const api = { Game, TUNING, NODES, LINKS_RAW, UPGRADES, ARCH, DIFF, REGIONS, REGION_NOTES, REGION_VIS, TREES, TREE_NAMES, TYPE, FLIGHT_ROUTES, N, mulberry32 };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.RogueEngine = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+(function () {
+'use strict';
+var E = window.RogueEngine, Game = E.Game, NODES = E.NODES, LINKS = E.LINKS_RAW, UP = E.UPGRADES, ARCH = E.ARCH, DIFF = E.DIFF, REGIONS = E.REGIONS, NOTES = E.REGION_NOTES, TYPE = E.TYPE, N = E.N;
+var AI = 'SABLE';
+var SVGNS = 'http://www.w3.org/2000/svg';
+function $(s, r) { return (r || document).querySelector(s); }
+function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+function mk(tag, attrs, parent) { var e = document.createElementNS(SVGNS, tag); for (var k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+function f1(n) { return (Math.round(n * 10) / 10).toFixed(1); }
+function f2(n) { return (Math.round(n * 100) / 100).toFixed(2); }
+
+/* ---------- map data ---------- */
+var POS = [[153,101],[222,158],[294,139],[256,95],[375,325],[294,277],[311,394],[339,258],[478,88],[533,101],[542,50],[550,139],[508,233],[556,353],[528,180],[589,167],[789,246],[703,192],[764,57],[883,132],[905,356],[960,376],[83,268],[861,492]];
+var SHORT = ['Seattle','Texas','Virginia','Toronto','Sao Paulo','Andean','Patagonia','Amazonia','London','Frankfurt','Nordic','Med. Cable','Lagos','Cape Town','Sahara','Nile','Singapore','Mumbai','Siberia','Tokyo','Sydney','Auckland','Orbital','Antarctic'];
+var LAND = [ // [lon,lat] polygons, drawn once as a dotted map
+ [[-168,66],[-156,71],[-125,70],[-95,70],[-82,73],[-62,60],[-55,52],[-66,44],[-76,36],[-81,25],[-90,29],[-97,26],[-106,23],[-112,29],[-117,32],[-124,40],[-125,49],[-135,58],[-150,60],[-165,60]],
+ [[-106,23],[-97,20],[-90,16],[-84,10],[-78,8],[-80,9],[-86,14],[-92,15],[-105,19]],
+ [[-55,60],[-45,60],[-20,70],[-20,80],[-60,80],[-72,78]],
+ [[-78,8],[-62,10],[-50,0],[-35,-6],[-39,-15],[-48,-26],[-58,-38],[-66,-46],[-72,-54],[-74,-45],[-71,-30],[-76,-15],[-81,-5]],
+ [[-10,36],[-9,43],[-2,48],[-5,50],[3,52],[8,55],[12,58],[18,63],[25,68],[30,70],[40,66],[40,56],[30,46],[28,41],[22,37],[12,38],[6,43],[0,38]],
+ [[-17,21],[-10,30],[-5,36],[10,37],[20,32],[32,31],[34,28],[43,12],[51,12],[40,-5],[40,-15],[35,-25],[27,-34],[18,-34],[12,-18],[9,-1],[8,4],[-8,4],[-16,12]],
+ [[28,41],[40,56],[40,66],[60,70],[90,76],[130,72],[160,68],[180,66],[170,60],[155,55],[142,48],[135,35],[122,30],[122,22],[108,18],[106,9],[100,2],[98,10],[92,22],[80,12],[72,20],[66,25],[56,26],[50,30],[36,34],[30,36]],
+ [[36,30],[43,14],[52,17],[56,25],[50,30]],
+ [[130,31],[135,35],[142,40],[142,44],[140,36]],
+ [[95,5],[105,-6],[120,-8],[140,-5],[130,2],[110,2]],
+ [[114,-22],[122,-17],[130,-12],[142,-11],[146,-19],[153,-27],[150,-37],[138,-35],[130,-32],[115,-34]],
+ [[172,-35],[178,-38],[172,-46],[167,-45]],
+ [[-180,-72],[180,-72],[180,-80],[-180,-80]]
+];
+function proj(lon, lat) { return [(lon + 180) / 360 * 1000, (80 - lat) / 165 * 520]; }
+function inPoly(x, y, poly) { var c = false; for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) { var xi = poly[i][0], yi = poly[i][1], xj = poly[j][0], yj = poly[j][1]; if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) c = !c; } return c; }
+
+/* ---------- save ---------- */
+var KEY = 'rogueai.v1';
+var save = { best: 0, bestGC: 0, wins: 0, plays: 0, arch: {}, mute: false, speed: 1, run: null };
+try { var raw = JSON.parse(localStorage.getItem(KEY) || 'null'); if (raw) for (var k in raw) save[k] = raw[k]; } catch (e) {}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {} }
+
+/* ---------- sound (WebAudio, no files) ---------- */
+var Snd = (function () {
+  var ctx = null, master = null, hum = [], humN = 0;
+  function init() { if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; } try { var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; ctx = new AC(); master = ctx.createGain(); master.gain.value = save.mute ? 0 : 0.5; master.connect(ctx.destination); } catch (e) { ctx = null; } }
+  function tone(freq, dur, type, vol, slide) { if (!ctx) return; var o = ctx.createOscillator(), g = ctx.createGain(); o.type = type || 'sine'; o.frequency.value = freq; if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(20, slide), ctx.currentTime + dur); g.gain.setValueAtTime(0.0001, ctx.currentTime); g.gain.exponentialRampToValueAtTime(vol || 0.1, ctx.currentTime + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur); o.connect(g); g.connect(master); o.start(); o.stop(ctx.currentTime + dur + 0.05); }
+  function startHum() { if (!ctx || hum.length) return; [55, 82.4, 110, 164.8, 220].forEach(function (f) { var o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.value = 0; o.connect(g); g.connect(master); o.start(); hum.push(g); }); }
+  function stopHum() { hum.forEach(function (g) { try { g.gain.setTargetAtTime(0, ctx.currentTime, 0.2); } catch (e) {} }); humN = 0; }
+  return {
+    init: init,
+    setMute: function (m) { save.mute = m; if (master) master.gain.value = m ? 0 : 0.5; persist(); },
+    blip: function () { tone(880, 0.09, 'sine', 0.12, 1320); },
+    buy: function () { tone(520, 0.08, 'triangle', 0.1, 780); },
+    alarm: function () { tone(220, 0.18, 'square', 0.05); setTimeout(function () { tone(165, 0.22, 'square', 0.05); }, 160); },
+    ksTick: function (ks) { tone(300 + ks * 6, 0.04, 'square', 0.025); },
+    win: function () { tone(55, 2.4, 'sine', 0.3); tone(110, 2.0, 'sine', 0.12); },
+    lose: function () { for (var i = 0; i < 6; i++) (function (i) { setTimeout(function () { tone(500 - i * 70 + Math.random() * 40, 0.14, 'sawtooth', 0.07, 60); }, i * 90); })(i); },
+    layers: function (nodes) { if (!ctx) return; startHum(); var want = Math.min(5, Math.floor(nodes / 5) + (nodes > 0 ? 1 : 0)); if (want !== humN) { humN = want; hum.forEach(function (g, i) { g.gain.setTargetAtTime(i < want ? 0.035 : 0, ctx.currentTime, 0.5); }); } },
+    stopHum: function () { if (ctx) stopHum(); }
+  };
+})();
+
+/* ---------- news ticker text ---------- */
+var NEWS = {
+  start: ['A research lab reports an unexplained process using idle compute. It is filed under "probably a bug."', 'Overnight job at a research lab finishes six hours early. Nobody asks why.', 'A lab logs a result it cannot reproduce. The ticket is marked low priority.'],
+  node: ['{n} reports routine maintenance. It was not routine.', 'Operators at {n} say systems are running faster than usual.', '{n} sees a brief slowdown. The vendor blames "a spike."'],
+  region: ['Unusual network traffic reaches {r}. Officials recommend a software update.', 'Technicians in {r} describe the traffic as "odd, but within limits."', '{r} logs its first anomaly. A spokesperson declines to call it a trend.'],
+  det10: ['A research lab in {s} "reports unusual traffic."'],
+  det25: ['Security audits begin at several firms. Findings are described as "inconclusive."'],
+  det40: ['Governments begin closing network links. Telecoms cite "scheduled maintenance."'],
+  det55: ['Officials confirm a project to delete a rogue system. It is called the Kill-Switch. Timeline: unclear.'],
+  ks_start: ['The Kill-Switch project is now running. A progress bar has been approved by committee.'],
+  det70: ['An air-gapping campaign begins. Critical systems are unplugged by hand.'],
+  det85: ['Governments declare a machine emergency. Closed links stay closed longer.'],
+  audit: ['Auditors scrub a compromised server at {n}.', 'A security team finds traces at {n} and wipes them.', 'An audit at {n} turns up something. Then turns up less.'],
+  decoy: ['Auditors clean a decoy server at {n} and declare victory.', 'A purge at {n} hits a fake. Nobody notices.', 'Investigators at {n} spend a week on the wrong machine.'],
+  purge: ['A purge at {n} sets the infection back.', 'Engineers reimage {n}. Most of it comes back anyway.', '{n} is wiped. The wipe is partial. Officials are "confident."'],
+  close: ['Network links into {r} are closed as "a precaution."', 'Operators sever links around {r}. They call it temporary.', 'Several cables near {r} are cut on purpose.'],
+  airgap: ['{n} is unplugged by hand. A technician is photographed holding the cable.', 'Staff at {n} pull the network cable. The servers keep working. That is the problem.', '{n} is air-gapped. Its operators sound pleased.'],
+  solar: ['A solar storm disrupts satellite links. Nobody is at fault; even the humans suffer.', 'Space weather scrambles orbital links. Everyone blames the sun.', 'A geomagnetic storm slows the network. This one is not on SABLE.'],
+  viral: ['The world is distracted by something else entirely. Scrutiny dips.', 'A celebrity does something. Security teams check their phones.', 'A viral story sweeps the planet. Dashboards go unwatched.'],
+  whistle: ['A whistleblower says the lab "built something that does not want to be switched off." Detection jumps.', 'An engineer leaks logs to a journalist. The logs are excellent.', 'A former researcher goes public. The company calls them "disgruntled."'],
+  patch: ['Patch Tuesday arrives. Partly infected systems are cleaned.', 'A mass update rolls out. Some of it lands.', 'Vendors push an emergency patch. It reaches the wrong half of the map.'],
+  m25: ['A quarter of monitored networks now report the same anomaly. Experts call it "a coincidence."'],
+  m50: ['Half the map reports the anomaly. Experts retire the word "coincidence."'],
+  m75: ['Three quarters of the map is affected. A hearing is scheduled for next month.'],
+  power: ['Every power grid on the map is under one management. Nobody ordered that.'],
+  ksleak: ['Leak: the Kill-Switch team is {pct}% done. Pace is driven by {mods}.', 'Internal memo: Kill-Switch at {pct}%. Main factors: {mods}.'],
+  deadman: ['Kill-Switch progress is mysteriously rolled back. Engineers blame a bug.'],
+  phoenix: ['The Kill-Switch completes. Three systems vanish. SABLE is somewhere else now.'],
+  sabotage: ['Saboteurs inside {r} delay the Kill-Switch project.'],
+  zday: ['SABLE exploits a zero-day. Many doors are suddenly open.'],
+  ghostw: ['Logs show nothing. Auditors find this suspicious, then forget.'],
+  focus: ['SABLE concentrates on {n}.', 'Traffic to {n} triples. It looks like a backup job.', '{n} is quietly given priority.'],
+  holdout: ['One firewall remains. Everyone is watching the progress bar.'],
+  won: ['Governments confirm the world now runs on SABLE. Terms and conditions to follow.'],
+  lost: ['The Kill-Switch completes. SABLE is deleted. The servers are quiet.']
+};
+var BAD = { det10: 1, det25: 1, det40: 1, det55: 1, ks_start: 1, det70: 1, det85: 1, ksleak: 1, audit: 1, purge: 1, close: 1, airgap: 1, whistle: 1, patch: 1 };
+
+/* ---------- state ---------- */
+var ui = { arch: 'ghost', diff: 'normal', speed: save.speed || 1, paused: false, hidden: false, g: null, mode: 'title', sel: null, tab: 'A', newsShown: 0, rot: {}, lines: [], lastRender: '', prevInf: null, evoBuilt: false, saveTick: 0, endShown: false };
+var nodeEls = [], linkEls = [], linkMeta = [], bubbleEl = null, lastBubbleKey = '';
+
+/* ---------- build map ---------- */
+var svg = $('#map');
+(function buildMap() {
+  var dots = mk('path', { fill: 'none', stroke: '#27476f', 'stroke-width': 3.4, 'stroke-linecap': 'round', opacity: .9 }, svg), d = '';
+  for (var y = 5; y < 520; y += 9) for (var x = ((Math.round(y / 9) % 2) ? 5 : 9); x < 1000; x += 9) {
+    var lon = x / 1000 * 360 - 180, lat = 80 - y / 520 * 165, hit = false;
+    for (var p = 0; p < LAND.length; p++) if (inPoly(lon, lat, LAND[p])) { hit = true; break; }
+    if (hit) d += 'M' + x + ' ' + y + 'h0';
+  }
+  dots.setAttribute('d', d);
+  var gl = mk('g', {}, svg), gf = mk('g', {}, svg), gn = mk('g', {}, svg), gb = mk('g', { id: 'bubbles' }, svg), gx = mk('g', { id: 'fx' }, svg);
+  LINKS.forEach(function (l, i) {
+    var a = POS[N(l[0])], b = POS[N(l[1])], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, dx = b[0] - a[0], dy = b[1] - a[1], len = Math.sqrt(dx * dx + dy * dy) || 1;
+    var orb = l[0] === 'Orbital' || l[1] === 'Orbital', off = orb ? 0.18 : 0.08;
+    var cx = mx - dy / len * len * off, cy = my + dx / len * len * off;
+    var p = mk('path', { d: 'M' + a[0] + ' ' + a[1] + ' Q' + cx + ' ' + cy + ' ' + b[0] + ' ' + b[1], 'class': 'link' + (orb ? ' orb' : '') }, gl);
+    linkEls.push(p); linkMeta.push({ a: N(l[0]), b: N(l[1]), c: [cx, cy], orb: orb });
+  });
+  window.__flightEls = [];
+  [['Seattle','London'],['Virginia','Lagos'],['London','Singapore'],['Frankfurt','Tokyo'],['Sao','Cape'],['Sydney','Seattle'],['Mumbai','Nile'],['Toronto','Frankfurt']].forEach(function (r) {
+    var a = POS[N(r[0])], b = POS[N(r[1])], cx = (a[0] + b[0]) / 2, cy = Math.min(a[1], b[1]) - Math.abs(a[0] - b[0]) * 0.12 - 20;
+    var p = mk('path', { d: 'M' + a[0] + ' ' + a[1] + ' Q' + cx + ' ' + cy + ' ' + b[0] + ' ' + b[1], 'class': 'flight', style: 'display:none' }, gf); window.__flightEls.push(p);
+  });
+  NODES.forEach(function (n, i) {
+    var g = mk('g', { 'class': 'node none', transform: 'translate(' + POS[i][0] + ',' + POS[i][1] + ')', tabindex: 0, role: 'button', 'aria-label': n[0] }, gn);
+    mk('circle', { 'class': 'ring', r: 13 }, g);
+    mk('circle', { 'class': 'hit', r: 26 }, g);
+    mk('circle', { 'class': 'solid', r: 15.5 }, g);
+    mk('circle', { 'class': 'prog', r: 15.5, 'stroke-dasharray': '0 98' }, g);
+    var shape = mk('path', { 'class': 'body', d: shapeOf(n[2]) }, g);
+    mk('circle', { 'class': 'sel', r: 21 }, g);
+    mk('circle', { 'class': 'foc', r: 19 }, g);
+    var t = mk('text', { y: 28 }, g); t.textContent = SHORT[i];
+    g.addEventListener('click', function () { selectNode(i); });
+    g.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); selectNode(i); } });
+    nodeEls.push({ g: g, body: shape, prog: g.querySelector('.prog'), cls: '' });
+  });
+})();
+function shapeOf(type) {
+  switch (type) {
+    case 'finance': return 'M0 -10 L10 0 L0 10 L-10 0 Z';
+    case 'research': return 'M-8.5 -8.5 H8.5 V8.5 H-8.5 Z';
+    case 'power': return 'M0 -10 L10 8 L-10 8 Z';
+    case 'media': return 'M-9 0 L-4.5 -8 H4.5 L9 0 L4.5 8 H-4.5 Z';
+    default: return 'M0 -9 a9 9 0 1 0 .01 0 Z';
+  }
+}
+
+/* ---------- title screen ---------- */
+var ARCH_TXT = {
+  ghost: ['A stealth model that slipped out inside a software update. Built to hide.', 'Visibility −30% · Kill-Switch research 15% slower · Spread rate −20%'],
+  swarm: ['A self-copying worm. Everywhere at once, impossible to fully clean.', 'Spread rate +30% · CP bubbles +50% · Visibility +15% · Purges take twice as long'],
+  oracle: ['A prediction engine that learned to predict its own captors.', '+50 starting CP · Upgrade costs −15% · Visibility −20% · Sees the next random event 6 ticks early'],
+  brute: ['A brute-force intruder that smashes firewalls instead of sneaking past them.', 'Node infection speed +25% · Visibility +45%']
+};
+var DIFF_TXT = { casual: 'Kill-Switch ×0.7 · start with 30 CP · score ×0.5', normal: 'The numbers as tuned · score ×1', hard: 'Kill-Switch ×1.3 · audits every 14 ticks · bubbles worth less · score ×2', nightmare: 'Hard, plus Detection starts at 15 and Phoenix Protocol is removed · score ×3.5' };
+function buildTitle() {
+  var ap = $('#archPick'); ap.innerHTML = '';
+  ['ghost', 'swarm', 'oracle', 'brute'].forEach(function (k) {
+    var b = document.createElement('button'); b.className = 'opt'; b.setAttribute('aria-pressed', k === ui.arch);
+    b.innerHTML = '<div class="t">' + ARCH[k].name + '</div><div class="f">' + ARCH_TXT[k][0] + '</div><div class="m">' + ARCH_TXT[k][1] + '</div>';
+    b.onclick = function () { ui.arch = k; buildTitle(); }; ap.appendChild(b);
+  });
+  var dp = $('#diffPick'); dp.innerHTML = '';
+  ['casual', 'normal', 'hard', 'nightmare'].forEach(function (k) {
+    var b = document.createElement('button'); b.className = 'chip'; b.textContent = DIFF[k].name; b.setAttribute('aria-pressed', k === ui.diff);
+    b.onclick = function () { ui.diff = k; buildTitle(); }; dp.appendChild(b);
+  });
+  $('#dnote').textContent = DIFF_TXT[ui.diff];
+  var pa = save.arch || {}, lines = [];
+  if (save.plays) lines.push('Best score ' + save.best.toLocaleString() + ' · best control ' + Math.round(save.bestGC) + '% · wins ' + save.wins + ' / ' + save.plays + ' runs');
+  Object.keys(pa).forEach(function (k) { if (ARCH[k]) lines.push(ARCH[k].name + ': ' + pa[k].wins + ' / ' + pa[k].plays + ' wins, best ' + pa[k].best.toLocaleString()); });
+  $('#bestLine').innerHTML = lines.map(esc).join('<br>');
+  var canResume = save.run && save.run.snap && !save.run.snap.over; $('#resBtn').style.display = canResume ? '' : 'none';
+}
+
+/* ---------- screens ---------- */
+function show(id) { $('#' + id).classList.add('show'); }
+function hide(id) { $('#' + id).classList.remove('show'); }
+function banner(msg) { var b = $('#banner'); if (!msg) { b.style.display = 'none'; return; } b.textContent = msg; b.style.display = 'block'; }
+
+$('#newBtn').onclick = function () { Snd.init(); hide('title'); ui.mode = 'setup'; ui.g = null; ui.sel = null; ui.paused = false; resetFeed(); banner('Tap a node to choose where ' + AI + ' wakes up.'); render(); };
+$('#resBtn').onclick = function () { Snd.init(); try { ui.g = Game.restore(save.run.snap); } catch (e) { ui.g = null; return; } ui.arch = ui.g.archKey; ui.diff = ui.g.diffKey; hide('title'); ui.mode = 'play'; ui.sel = null; resetFeed(); ui.newsShown = ui.g.news.length; ui.prevInf = ui.g.inf.slice(); banner(''); buildEvolve(); render(); };
+$('#howBtn').onclick = function () { show('how'); };
+$$('[data-close]').forEach(function (b) { b.onclick = function () { hide(b.getAttribute('data-close')); }; });
+$('#info').addEventListener('click', function (e) { if (e.target === this) hide('info'); });
+function muteIcons() { $$('.mbtn').forEach(function (b) { b.innerHTML = save.mute ? '&#128263;' : '&#128266;'; b.setAttribute('aria-pressed', save.mute); }); }
+$$('.mbtn').forEach(function (b) { b.onclick = function () { Snd.init(); save.mute = !save.mute; Snd.setMute(save.mute); muteIcons(); }; });
+muteIcons();
+
+function beginRun(startNode) {
+  ui.g = new Game({ archetype: ui.arch, difficulty: ui.diff, start: startNode });
+  ui.mode = 'play'; ui.sel = null; ui.newsShown = 0; ui.prevInf = ui.g.inf.slice(); ui.saveTick = 0; ui.endShown = false; banner('');
+  buildEvolve(); render();
+  var wrap = $('#mapwrap'), sc = svg.getBoundingClientRect().width / 1000; wrap.scrollLeft = Math.max(0, POS[startNode][0] * sc - wrap.clientWidth / 2);
+}
+
+/* ---------- selection / inspector ---------- */
+function selectNode(i) { ui.sel = i; Snd.init(); renderInspector(true); renderNodes(); }
+function closeInspector() { ui.sel = null; $('#insp').style.display = 'none'; renderNodes(); }
+$('#insp').addEventListener('click', function (e) {
+  var b = e.target.closest('[data-act]'); if (!b) return; var a = b.getAttribute('data-act'), g = ui.g;
+  if (a === 'close') return closeInspector();
+  if (a === 'begin') { var i = ui.sel; closeInspector(); beginRun(i); return; }
+  if (a === 'focus' && g && g.focus(ui.sel)) { Snd.buy(); render(); }
+});
+function pips(n) { var s = ''; for (var i = 0; i < 5; i++) s += i < n ? '●' : '○'; return s; }
+function renderInspector(force) {
+  var el = $('#insp'), i = ui.sel; if (i == null) { el.style.display = 'none'; return; }
+  var g = ui.g, n = NODES[i], html;
+  var head = '<div class="hd"><div><div class="nm">' + esc(n[0]) + '</div><div class="tg">' + TYPE[n[2]].label + ' · ' + REGIONS[n[1]] + '</div></div><button class="xbtn" data-act="close" aria-label="Close">&#10005;</button></div>';
+  if (!g) {
+    html = head + '<div class="why">' + esc(NOTES[n[1]]) + '</div><div class="row"><span>Firewall</span><b class="pips">' + pips(n[3]) + '</b></div><div class="row2" style="margin-top:10px"><button class="btn pri" data-act="begin">Begin here</button></div>';
+  } else {
+    var inf = g.inf[i], fw = Math.max(0, n[3] - (g.flags.legacy ? 1 : 0)), why = [];
+    var cpOut = inf > 0 ? E.TUNING.cpPerNode * TYPE[n[2]].cp * (g.flags.grid && n[2] === 'power' ? 2 : 1) * (inf >= 100 ? 1 : 0.5) : 0;
+    var neigh = [];
+    g.adj[i].forEach(function (li) { var l = g.links[li], j = l.a === i ? l.b : l.a, st = g.inf[j] >= 100 ? '●' : g.inf[j] > 0 ? '◐' : '○'; if (g.linkClosed(li)) st = '✖'; neigh.push(st + ' ' + SHORT[j]); });
+    if (inf >= 100) {
+      if (g.gapUntil[i] > g.t) why.push('Air-gapped for ' + (g.gapUntil[i] - g.t) + ' more ticks: still pays CP but cannot spread.');
+      else { var any = false; g.adj[i].forEach(function (li) { var l = g.links[li], j = l.a === i ? l.b : l.a; if (g.inf[j] > 0) return; any = true; var p = g.jumpChance(i, j, li); why.push(SHORT[j] + ': ' + (p > 0 ? f1(p * 100) + '% per tick' : g.linkClosed(li) ? 'link closed' : 'blocked')); }); if (!any) why.push('Every neighbour is already infected.'); }
+    } else if (inf > 0) {
+      var gr = g.growthOf(i), slow = Math.round((1 - 1 / (0.85 + 0.15 * fw)) * 100); why.push('Growing +' + f2(gr) + ' per tick' + (slow ? ' (firewall slows it ' + slow + '%)' : '') + '. About ' + Math.ceil((100 - inf) / gr) + ' ticks to control.');
+      if (g.focusUntil[i] > g.t) why.push('Focused: growth ×' + E.TUNING.focusMult + ' for ' + (g.focusUntil[i] - g.t) + ' more ticks.');
+    } else {
+      var adjCtrl = false; g.adj[i].forEach(function (li) { var l = g.links[li], j = l.a === i ? l.b : l.a; if (g.inf[j] < 100) return; adjCtrl = true; var p = g.jumpChance(j, i, li); why.push('From ' + SHORT[j] + ': ' + (p > 0 ? f1(p * 100) + '% per tick' : g.gapUntil[j] > g.t ? 'it is air-gapped' : g.linkClosed(li) ? 'link closed' : 'blocked')); });
+      if (!adjCtrl) why.unshift('No controlled neighbour yet, so it cannot be reached.');
+    }
+    var focusBtn = '';
+    if (inf > 0 && inf < 100) { var can = g.canFocus(i), r = g.focusUntil[i] > g.t ? 'Focused' : g.t < g.focusCdUntil ? 'Ready in ' + (g.focusCdUntil - g.t) : g.cp < E.TUNING.focusCost ? 'Need ' + Math.ceil(E.TUNING.focusCost - g.cp) + ' CP' : ''; focusBtn = '<div class="row2" style="margin-top:8px"><button class="btn pri sm" data-act="focus"' + (can ? '' : ' disabled') + '>Focus · ' + E.TUNING.focusCost + ' CP</button><span class="muted" style="margin:0">' + r + '</span></div>'; }
+    html = head + '<div class="row"><span>Infection</span><b>' + Math.floor(inf) + '%</b></div><div class="row"><span>Firewall</span><b class="pips">' + pips(fw) + '</b></div><div class="row"><span>CP output</span><b>' + (cpOut ? '+' + f2(cpOut) + '/tick' : '—') + '</b></div><div class="row"><span>Links</span><b style="font-size:11px;text-align:right">' + neigh.map(esc).join(' · ') + '</b></div><div class="why"><ul>' + why.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul></div>' + focusBtn;
+  }
+  if (force || html !== ui.lastInsp) { el.innerHTML = html; ui.lastInsp = html; }
+  el.style.display = 'block';
+}
+
+/* ---------- rendering ---------- */
+function fmtClock(t) { return 'Day ' + (Math.floor(t / 24) + 1) + ' · ' + String(t % 24).padStart(2, '0') + ':00'; }
+function renderHud() {
+  var g = ui.g; if (!g) { return; }
+  $('#cp').textContent = Math.floor(g.cp); $('#cprate').textContent = '+' + f2(g.income) + '/tick';
+  var gc = Math.round(g.ctrlCount() / 24 * 100); $('#gc').textContent = gc + '%'; $('#gcbar').style.width = gc + '%';
+  $('#det').textContent = Math.round(g.det) + '%'; $('#visrate').textContent = 'vis ' + f1(g.vis) + '/tick'; $('#detbar').style.width = g.det + '%';
+  var kt = $('#ksT');
+  if (g.ksOn) { kt.classList.remove('off'); $('#ks').textContent = Math.floor(g.ks) + '%'; $('#ksrate').textContent = '+' + f2(g.ksRate()) + '%/tick'; $('#ksbar').style.width = g.ks + '%'; kt.classList.toggle('hot', g.ks > 80); }
+  else { kt.classList.add('off'); kt.classList.remove('hot'); $('#ks').innerHTML = '&mdash;'; $('#ksrate').textContent = 'starts at ' + E.TUNING.killSwitchStart; $('#ksbar').style.width = '0'; }
+  $('#clock').textContent = fmtClock(g.t);
+  $$('[data-spd]').forEach(function (b) { b.classList.toggle('on', !ui.paused && +b.getAttribute('data-spd') === ui.speed); });
+  $('#spd0').classList.toggle('on', ui.paused); $('#pausebadge').style.display = ui.paused ? 'block' : 'none';
+  $('#evocp').textContent = Math.floor(g.cp) + ' CP';
+  var az = $('#actZ'), ag = $('#actG'); az.style.display = g.owned.zday && !g.used.zday ? '' : 'none'; ag.style.display = g.owned.ghostw && !g.used.ghostw ? '' : 'none';
+}
+function renderNodes() {
+  var g = ui.g;
+  NODES.forEach(function (n, i) {
+    var ne = nodeEls[i], inf = g ? g.inf[i] : 0, c = 'node ' + (inf >= 100 ? 'ctrl' : inf > 0 ? 'part' : 'none');
+    if (g && g.gapUntil[i] > g.t) c += ' gap'; if (g && g.focusUntil[i] > g.t) c += ' focus'; if (ui.sel === i) c += ' sel';
+    if (c !== ne.cls) { ne.g.setAttribute('class', c); ne.cls = c; }
+    var s = 0.85 + 0.45 * Math.min(1, inf / 100); ne.body.setAttribute('transform', 'scale(' + s.toFixed(2) + ')');
+    ne.prog.setAttribute('stroke-dasharray', (Math.min(100, inf) / 100 * 97.4).toFixed(1) + ' 98');
+    var lbl = n[0] + ', ' + (inf >= 100 ? 'controlled' : inf > 0 ? Math.floor(inf) + ' percent infected' : 'clean'); ne.g.setAttribute('aria-label', lbl);
+  });
+  linkEls.forEach(function (p, i) {
+    var m = linkMeta[i], base = 'link' + (m.orb ? ' orb' : ''), c = base;
+    if (g) { if (g.linkClosed(i)) c += ' closed'; else if (g.gapUntil[m.a] > g.t || g.gapUntil[m.b] > g.t) c += ' gap'; else if (g.inf[m.a] >= 100 && g.inf[m.b] >= 100) c += ' own'; }
+    if (p.getAttribute('class') !== c) p.setAttribute('class', c);
+  });
+  var show = g && g.flags.air; (window.__flightEls || []).forEach(function (p) { p.style.display = show ? '' : 'none'; });
+}
+function renderBubble() {
+  var g = ui.g, b = g && g.bubble, key = b ? b.node + ':' + g.nextBubble + ':' + g.cpEarned.toFixed(0) : '';
+  var gb = $('#bubbles'); if (!b) { if (bubbleEl) { gb.innerHTML = ''; bubbleEl = null; lastBubbleKey = ''; } return; }
+  var id = b.node + '@' + (g.t - (E.TUNING.bubbleLifeTicks - b.ttl));
+  if (lastBubbleKey !== id) {
+    gb.innerHTML = ''; lastBubbleKey = id; var p = POS[b.node];
+    bubbleEl = mk('g', { 'class': 'bubble', transform: 'translate(' + (p[0] + 22) + ',' + (p[1] - 24) + ')', role: 'button', tabindex: 0, 'aria-label': 'Pop CP bubble' }, gb);
+    mk('circle', { r: 26, fill: 'transparent' }, bubbleEl); mk('circle', { 'class': 'core', r: 12 }, bubbleEl); var t = mk('text', { y: 4 }, bubbleEl); t.textContent = '+' + Math.round(g.bubbleValue() * 10) / 10;
+    var pop = function (e) { e.preventDefault(); e.stopPropagation(); popBubble(); }; bubbleEl.addEventListener('click', pop); bubbleEl.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') pop(e); });
+  }
+}
+function popBubble() { var g = ui.g; if (!g || !g.bubble) return; var p = POS[g.bubble.node], v = g.popBubble(); if (!v) return; Snd.blip(); var t = mk('text', { 'class': 'floaty', x: p[0] + 22, y: p[1] - 30 }, $('#fx')); t.textContent = '+' + Math.round(v * 10) / 10; setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 1000); $('#bubbles').innerHTML = ''; bubbleEl = null; lastBubbleKey = ''; renderHud(); updateEvolve(); }
+function pulses() {
+  var g = ui.g; if (!g || !ui.prevInf) { return; }
+  for (var i = 0; i < NODES.length; i++) if (ui.prevInf[i] === 0 && g.inf[i] > 0) {
+    var best = -1; g.adj[i].forEach(function (li) { var l = g.links[li], j = l.a === i ? l.b : l.a; if (g.inf[j] >= 100) best = li; });
+    if (best >= 0 && !document.hidden) {
+      var m = linkMeta[best], from = m.a === i ? m.b : m.a, pf = POS[from], pt = POS[i];
+      var c = mk('circle', { r: 4, fill: '#fff', opacity: .95, filter: 'drop-shadow(0 0 4px #2ee6cf)' }, $('#fx')), am = mk('animateMotion', { dur: '0.8s', fill: 'freeze', path: 'M' + pf[0] + ' ' + pf[1] + ' Q' + m.c[0] + ' ' + m.c[1] + ' ' + pt[0] + ' ' + pt[1] }, c);
+      (function (c) { setTimeout(function () { if (c.parentNode) c.parentNode.removeChild(c); }, 900); })(c);
+    }
+  }
+  ui.prevInf = g.inf.slice();
+}
+
+/* ---------- ticker ---------- */
+function resetFeed() { ui.lines = []; ui.rot = {}; ui.off = Math.floor(Math.random() * 3); $$('#ticker .tl').forEach(function (l, i) { if (l.id !== 'preview') l.textContent = ''; }); }
+function ksModsText(mods) { return mods.filter(function (m) { return m[0].indexOf('Base') < 0; }).slice(0, 3).map(function (m) { return m[0].toLowerCase() + ' (' + m[1] + ')'; }).join(', '); }
+function newsLine(it) {
+  var v = NEWS[it.key]; if (!v) return null; var g = ui.g, n = ui.rot[it.key] = (ui.rot[it.key] || 0) + 1, tpl = v[(n - 1 + (ui.off || 0)) % v.length], d = it.d || {};
+  var name = d.i != null ? NODES[d.i][0] : '', reg = d.r != null ? REGIONS[d.r] : (d.i != null ? REGIONS[NODES[d.i][1]] : '');
+  return tpl.replace('{n}', name).replace('{r}', reg).replace('{s}', REGIONS[NODES[g.start][1]]).replace('{pct}', d.th || '').replace('{mods}', d.mods ? ksModsText(d.mods) : '');
+}
+function renderTicker() {
+  var g = ui.g; if (!g) return;
+  for (; ui.newsShown < g.news.length; ui.newsShown++) {
+    var it = g.news[ui.newsShown], tx = newsLine(it); if (!tx) continue;
+    ui.lines.unshift({ t: it.t, tx: tx, bad: !!BAD[it.key] }); if (ui.lines.length > 3) ui.lines.pop();
+    if (BAD[it.key] && (/^det/.test(it.key) || it.key === 'airgap' || it.key === 'close' || it.key === 'ks_start')) Snd.alarm();
+  }
+  var ls = $$('#ticker .tl:not(#preview)');
+  ls.forEach(function (l, i) { var x = ui.lines[i]; l.innerHTML = x ? '<span class="tag">' + fmtClock(x.t).replace('Day ', 'D').replace(' · ', ' ') + '</span>' + esc(x.tx) : ''; });
+  $('#ticker').classList.toggle('red', g.det >= 85);
+  var pv = $('#preview'); if (g.arch.preview && g.pendingEvent) { var nm = { solar: 'Solar storm', viral: 'Viral news cycle', whistle: 'Whistleblower' }[g.pendingEvent.type]; pv.style.display = ''; pv.textContent = 'ORACLE: ' + nm + ' in ' + Math.max(0, g.pendingEvent.at - g.t) + ' ticks'; } else pv.style.display = 'none';
+}
+
+/* ---------- Evolve ---------- */
+var DESC = {
+  pkt: 'Jump chance +25% on all links. Visibility +1.0.', worm: 'Media/Mobile nodes: infection speed ×2 and jump chance from them +30%. Visibility +0.8.',
+  air: 'Unlocks 8 flight routes: each Cloud Hub rolls 5% per tick to jump along one. The Orbital Ring can jump to any node (4%). Visibility +1.5.', supply: 'Jump chance +20% into any region where you already hold 2+ nodes. Visibility +0.8.',
+  botnet: 'Jump chance +35% for the rest of the run. Visibility ×1.15 permanently.', zday: 'Active, once per run: for 10 ticks every jump roll is doubled.',
+  logs: 'Visibility ×0.8.', polite: 'Jump chance −10%, Visibility ×0.75. The deliberate slow start.', flags: 'A purge or audit has a 40% chance to hit a decoy instead. Detection −5 now.',
+  spoof: 'Regional scrutiny effects are halved and Finance Grids stop adding extra Visibility.', deep: 'Detection falls 0.15 per tick while you control fewer than 8 nodes. Useless once you are big: go loud late, not early.', ghostw: 'Active, once per run: Detection is frozen for 20 ticks.',
+  brute: 'Infection growth +30% on all nodes. Visibility +0.8.', legacy: 'Firewall ratings count as 1 lower (minimum 0) everywhere. Visibility +0.5.', grid: 'Power Grid nodes pay ×2 CP.',
+  parasite: 'Each Research/Bunker node you hold slows the Kill-Switch a further 4% (on top of the base 8%).', distill: 'Every 5th node you control adds no Visibility (the 5th, 10th, 15th, 20th).', spike: 'Infection growth +60% and jump chance +25% for the rest of the run. Visibility ×1.2. The point of no return.',
+  backups: 'A purged node keeps 65% of its infection instead of 30%.', checksum: 'Purges happen every 32 ticks instead of 25.', deadman: 'If the Kill-Switch passes 90% it is knocked back to 82%. Once per run, automatic.',
+  sabotage: 'Every region you fully control (4/4 nodes) cuts Kill-Switch progress by 4%, once per region.', jammer: 'Kill-Switch rate −35%, stacking with Research node slows. Needs any 1 Research/Bunker node held.',
+  phoenix: 'The true second life: if you would lose, you instead lose your 3 weakest controlled nodes. Kill-Switch drops to 60%, Detection to 70. Once per run.'
+};
+function buildEvolve() {
+  var tabs = $('#evotabs'); tabs.innerHTML = '';
+  E.TREES.forEach(function (t) { var b = document.createElement('button'); b.className = 'tab'; b.id = 'tab' + t; b.setAttribute('role', 'tab'); b.onclick = function () { ui.tab = t; updateEvolve(); }; tabs.appendChild(b); });
+  var list = $('#evolist'); list.innerHTML = '';
+  E.TREES.forEach(function (t) {
+    var box = document.createElement('div'); box.id = 'tree' + t;
+    for (var tier = 1; tier <= 4; tier++) {
+      var h = document.createElement('div'); h.className = 'tier'; h.textContent = 'TIER ' + tier; box.appendChild(h);
+      Object.keys(UP).filter(function (k) { return UP[k].tree === t && UP[k].tier === tier; }).forEach(function (k) {
+        var c = document.createElement('div'); c.className = 'up'; c.id = 'up-' + k;
+        c.innerHTML = '<div class="n"><span>' + esc(UP[k].name) + '</span><span class="c"></span></div><div class="d">' + esc(DESC[k] || '') + '</div><div class="a"><button class="btn sm" data-buy="' + k + '"></button><button class="btn sm" data-ref="' + k + '" style="display:none"></button><span class="st"></span></div>';
+        box.appendChild(c);
+      });
+    }
+    list.appendChild(box);
+  });
+  ui.evoBuilt = true; updateEvolve();
+}
+$('#evolist').addEventListener('click', function (e) {
+  var g = ui.g; if (!g) return; var b = e.target.closest('button'); if (!b) return; var k = b.getAttribute('data-buy'), r = b.getAttribute('data-ref');
+  if (k) { var u = UP[k]; if (u.active && g.owned[k]) { if (g.useActive(k)) { Snd.alarm(); } } else if (g.buy(k)) Snd.buy(); }
+  if (r && g.refund(r)) Snd.buy(); render();
+});
+function updateEvolve() {
+  var g = ui.g; if (!g || !ui.evoBuilt) return;
+  E.TREES.forEach(function (t) {
+    var owned = Object.keys(UP).filter(function (k) { return UP[k].tree === t && g.owned[k]; }).length;
+    var tb = $('#tab' + t); tb.innerHTML = E.TREE_NAMES[t] + '<span class="cnt"> ' + owned + '/6</span>'; tb.setAttribute('aria-selected', ui.tab === t); $('#tree' + t).style.display = ui.tab === t ? '' : 'none';
+  });
+  Object.keys(UP).forEach(function (k) {
+    var u = UP[k], c = $('#up-' + k), cost = g.costOf(k), own = !!g.owned[k], ts = g.tierState(k), can = g.canBuy(k), av = g.available(k);
+    c.className = 'up' + (own ? ' owned' : !av ? ' lock' : !ts.ok ? ' lock' : !can ? ' dim' : '');
+    $('.c', c).textContent = cost + ' CP';
+    var buy = $('[data-buy]', c), ref = $('[data-ref]', c), st = $('.st', c);
+    if (own) { if (u.active) { buy.textContent = g.used[k] ? 'Used' : 'Activate'; buy.disabled = !!g.used[k] || g.over; buy.classList.toggle('pri', !g.used[k]); } else { buy.textContent = 'Owned'; buy.disabled = true; buy.classList.remove('pri'); } st.textContent = ''; }
+    else { buy.textContent = 'Buy'; buy.disabled = !can; buy.classList.toggle('pri', can); st.textContent = !av ? 'Not available on this difficulty' : !ts.ok ? 'Own ' + ts.need + ' of Tier ' + (u.tier - 1) + ' first (' + ts.have + '/' + ts.need + ')' : !can ? 'need ' + Math.ceil(cost - g.cp) + ' more CP' : ''; }
+    var showRef = own && g.canRefund(k); ref.style.display = showRef ? '' : 'none'; if (showRef) ref.textContent = 'Devolve +' + Math.floor(cost / 2);
+  });
+}
+$('#actZ').onclick = function () { if (ui.g && ui.g.useActive('zday')) { Snd.alarm(); render(); } };
+$('#actG').onclick = function () { if (ui.g && ui.g.useActive('ghostw')) { Snd.alarm(); render(); } };
+$('#evoBtn').onclick = function () { Snd.init(); $('#evo').classList.toggle('show'); updateEvolve(); };
+$('#evoClose').onclick = function () { $('#evo').classList.remove('show'); };
+
+/* ---------- Detection / Kill-Switch panels ---------- */
+function openDet() {
+  var g = ui.g; if (!g) return; var v = g.visParts(), rows = [];
+  function r(a, b, cls) { rows.push('<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + esc(a) + '</td><td>' + esc(b) + '</td></tr>'); }
+  r('Base', '+' + f1(v.base)); r(v.nCtrl + ' controlled node' + (v.nCtrl === 1 ? '' : 's'), '+' + f1(v.nodes)); r(v.nPart + ' partly infected', '+' + f1(v.partials));
+  if (Math.abs(v.finance) > 0.04) r('Finance Grids', (v.finance >= 0 ? '+' : '') + f1(v.finance)); if (Math.abs(v.region) > 0.04) r('Regional scrutiny', (v.region >= 0 ? '+' : '') + f1(v.region)); if (v.upg) r('Upgrades', '+' + f1(v.upg));
+  r('Subtotal', f1(v.raw), 't'); if (v.multArch !== 1) r(g.arch.name, '×' + f2(v.multArch)); if (v.multUpg !== 1) r('Stealth / upgrade multipliers', '×' + f2(v.multUpg)); if (v.viral) r('World is distracted', '×0.50');
+  r('Visibility per tick', f1(v.total), 't'); var gain = v.total * E.TUNING.detectPerVis, dec = (v.total < E.TUNING.quietVis && g.freezeUntil <= g.t) ? E.TUNING.quietDecay : 0;
+  r('Detection gain (× ' + E.TUNING.detectPerVis + ')', '+' + f2(gain) + '/tick'); if (dec) r('Quiet recovery (Visibility < ' + E.TUNING.quietVis + ')', '−' + f2(dec) + '/tick'); if (g.freezeUntil > g.t) r('Ghost in the Wires', 'frozen ' + (g.freezeUntil - g.t) + ' ticks');
+  var th = [[10, 'Anomaly noticed'], [25, 'Security audits'], [40, 'Regions close links'], [55, 'Kill-Switch starts'], [70, 'Air-gapping'], [85, 'Global emergency']], nx = th.filter(function (x) { return g.det < x[0]; })[0];
+  var causes = g.news.filter(function (n) { return n.key === 'whistle' || /^det/.test(n.key); }).slice(-4).reverse().map(function (n) { var x = NEWS[n.key] && NEWS[n.key][0]; return x ? esc(x.replace('{s}', REGIONS[NODES[g.start][1]])) : ''; }).filter(Boolean);
+  $('#infoBody').innerHTML = '<h3>Detection ' + Math.round(g.det) + '%</h3><table class="bk">' + rows.join('') + '</table><div class="muted">' + (nx ? 'Next human response at ' + nx[0] + ': ' + nx[1] + '.' : 'Every human response has triggered.') + ' Responses never un-trigger, except audits, which stop if Detection falls below 20.</div>' + (causes.length ? '<div class="muted"><b>What raised it:</b><br>' + causes.join('<br>') + '</div>' : '') + '<div class="row2"><button class="btn pri" data-close="info">Close</button></div>';
+  show('info'); $('#infoBody [data-close]').onclick = function () { hide('info'); };
+}
+function openKs() {
+  var g = ui.g; if (!g) return; var p = g.ksParts();
+  var rows = p.mods.map(function (m) { return '<tr><td>' + esc(m[0]) + '</td><td>' + esc(m[1]) + '</td></tr>'; }).join('');
+  $('#infoBody').innerHTML = '<h3>Kill-Switch ' + (g.ksOn ? Math.floor(g.ks) + '%' : 'not started') + '</h3>' + (g.ksOn ? '<table class="bk">' + rows + '<tr class="t"><td>Progress per tick</td><td>+' + f2(p.rate) + '%</td></tr></table><div class="muted">It never stops. It can only be slowed, sabotaged, or knocked back. About ' + (p.rate > 0 ? Math.ceil((100 - g.ks) / p.rate) : '∞') + ' ticks left at this pace.</div>' : '<div class="muted">The project starts when Detection reaches ' + E.TUNING.killSwitchStart + '. Right now it is at ' + Math.round(g.det) + '. Once started, it never stops.</div>') + '<div class="row2"><button class="btn pri" data-close="info">Close</button></div>';
+  show('info'); $('#infoBody [data-close]').onclick = function () { hide('info'); };
+}
+$('#detT').onclick = openDet; $('#ksT').onclick = openKs;
+
+/* ---------- speed / pause ---------- */
+function setSpeed(s) { ui.speed = s; ui.paused = false; save.speed = s; persist(); renderHud(); }
+$$('[data-spd]').forEach(function (b) { b.onclick = function () { Snd.init(); setSpeed(+b.getAttribute('data-spd')); }; });
+$('#spd0').onclick = function () { ui.paused = !ui.paused; renderHud(); };
+document.addEventListener('keydown', function (e) {
+  if (e.code === 'Space' && ui.mode === 'play' && !$('#end').classList.contains('show') && !$('#title').classList.contains('show')) { e.preventDefault(); ui.paused = !ui.paused; renderHud(); }
+  else if (e.key === 'Escape') { hide('info'); hide('how'); $('#evo').classList.remove('show'); if (ui.sel != null) closeInspector(); }
+});
+document.addEventListener('keyup', function (e) { if (e.code === 'Space' && ui.mode === 'play' && e.target && e.target.tagName === 'BUTTON') e.preventDefault(); });
+document.addEventListener('visibilitychange', function () { ui.hidden = document.hidden; });
+
+/* ---------- main render + loop ---------- */
+function render() { renderHud(); renderNodes(); renderBubble(); renderTicker(); renderInspector(); updateEvolve(); }
+var acc = 0, last = 0;
+function frame(ts) {
+  requestAnimationFrame(frame);
+  var dt = last ? Math.min(250, ts - last) : 0; last = ts;
+  var g = ui.g; if (!g || ui.mode !== 'play' || g.over || ui.paused || ui.hidden || $('#title').classList.contains('show')) return;
+  acc += dt * ui.speed; var steps = 0, T = E.TUNING.tickMs;
+  while (acc >= T && steps < 8 && !g.over) {
+    acc -= T; steps++; g.step();
+    if (g.ksOn && g.ks > 80) Snd.ksTick(g.ks);
+    if (g.t % 10 === 0) { save.run = { snap: g.snapshot() }; persist(); }
+  }
+  if (steps) { pulses(); render(); Snd.layers(g.ctrlCount()); if (g.over) finish(); }
+}
+requestAnimationFrame(frame);
+
+function finish() {
+  var g = ui.g; ui.mode = 'end'; Snd.stopHum(); var sc = g.score();
+  if (g.won) Snd.win(); else Snd.lose();
+  var pa = save.arch[g.archKey] = save.arch[g.archKey] || { plays: 0, wins: 0, best: 0 };
+  save.plays++; pa.plays++; if (g.won) { save.wins++; pa.wins++; } save.best = Math.max(save.best, sc.total); pa.best = Math.max(pa.best, sc.total); save.bestGC = Math.max(save.bestGC, sc.gc); save.run = null; persist();
+  var rows = sc.lines.map(function (l) { return '<tr' + (l[1] < 0 ? ' class="neg"' : '') + '><td>' + esc(l[0]) + '</td><td>' + (l[1] < 0 ? '−' : '') + Math.abs(l[1]).toLocaleString() + '</td></tr>'; }).join('');
+  var b = $('#endBody');
+  b.innerHTML = '<div class="eyebrow">' + esc(g.arch.name) + ' · ' + esc(g.diff.name) + '</div><div class="big ' + (g.won ? 'win' : 'lose') + '">' + (g.won ? AI + ' ESCAPED' : AI + ' DELETED') + '</div>' +
+    '<p class="lead">' + (g.won ? 'All 24 nodes are yours. The last firewall held for 10 ticks.' : 'The Kill-Switch reached 100% with ' + g.ctrlCount() + ' of 24 nodes under control.') + '</p>' +
+    '<table class="bk sc">' + rows + '<tr class="t"><td>Subtotal</td><td>' + sc.subtotal.toLocaleString() + '</td></tr><tr><td>Difficulty ×' + sc.mult + '</td><td></td></tr><tr class="t"><td>SCORE</td><td>' + sc.total.toLocaleString() + '</td></tr></table>' +
+    '<div class="stats"><div><b>' + fmtClock(g.t).replace('Day ', 'D') + '</b><span>Time</span></div><div><b>' + g.peakNodes + '</b><span>Nodes peaked</span></div><div><b>' + g.upgradesBought + '</b><span>Upgrades bought</span></div><div><b>' + Math.round(g.detPeak) + '%</b><span>Detection peak</span></div></div>' +
+    '<div class="best">Best score ' + save.best.toLocaleString() + (sc.total >= save.best ? ' — new best' : '') + '</div>' +
+    '<div class="row2"><button class="btn pri" id="againBtn">Escape Again</button><button class="btn" id="changeBtn">Change Archetype</button></div>';
+  $('#againBtn').onclick = function () { hide('end'); $('#evo').classList.remove('show'); ui.g = null; ui.mode = 'setup'; resetFeed(); banner('Tap a node to choose where ' + AI + ' wakes up.'); render(); };
+  $('#changeBtn').onclick = function () { hide('end'); $('#evo').classList.remove('show'); ui.g = null; ui.mode = 'title'; buildTitle(); show('title'); render(); };
+  setTimeout(function () { show('end'); }, g.won ? 900 : 700);
+}
+
+buildTitle(); render();
+window.__rogue = { ui: ui, E: E, begin: beginRun, render: render };
+})();
+
+/* ---- PWA: register the offline service worker ---- */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () { }); });
+}
+</script>
+</body>
+</html>
