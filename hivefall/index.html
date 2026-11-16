@@ -157,12 +157,28 @@ const BOSS_COINS = { alpha:[30,30], husk:[40,40], sporemother:[45,45], brood:[50
 
 // NEW_BUGS join the spawn mix from a given sector on and stay forever (so the swarm keeps getting more varied). w = spawn weight.
 const NEW_BUGS = [
-  { type:'spitter',  sector:2, w:4, note:'Spitters shoot from range. Keep moving.' },
-  { type:'screamer', sector:4, w:3, note:'Screamers speed up nearby bugs. Kill them first.' },
-  { type:'burrower', sector:6, w:4, note:'Burrowers dig in, then erupt where you were standing.' },
-  { type:'leech',    sector:8, w:4, note:'Leeches heal the bugs around them. Hunt them down.' },
-  { type:'latcher',  sector:10, w:4, note:'Latchers grab on and slow you. Shoot them off!' },
+  { type:'spitter',  sector:2,  w:4, cap:3, note:'Spitters shoot from range. Keep moving.' },
+  { type:'screamer', sector:4,  w:3, cap:2, note:'Screamers speed up nearby bugs. Kill them first.' },
+  { type:'burrower', sector:6,  w:4, cap:3, note:'Burrowers dig in, then erupt where you were standing.' },
+  { type:'leech',    sector:8,  w:4, cap:2, note:'Leeches heal the bugs around them. Hunt them down.' },
+  { type:'latcher',  sector:10, w:4, cap:3, note:'Latchers grab on and slow you. Shoot them off!' },
 ];
+// ease-in: a new bug debuts at 25% of its weight and reaches full weight 3 sectors later; its alive-cap grows +1 every 2 sectors (max cap+5)
+// health dropped by ordinary bugs: chance per kill by tier (Standard..Extinction), boosted when you are low, with a cooldown.
+const HEAL_DROP = { tier:[0.012, 0.007, 0.004, 0.0015, 0], lowBelow:0.5, lowMult:4, highAbove:0.8, highMult:0.5, cd:6, base:8, perMax:0.08, pull:240, eliteExtinction:true };
+const NEW_BUG_RAMP = { start: 0.25, perSector: 0.25, capEvery: 2, capMax: 5 };
+
+// TIERS: the fixed difficulty curve. A tier is 5 sectors. Difficulty comes ONLY from how far you climb - never from how strong your build is.
+// hp / dmg / spd = multipliers on top of the sector curve; cnt = swarm size multiplier; bonus = credit bonus. Past the table each tier grows by TIER_GROWTH.
+const TIERS = [
+  { name:'Standard',   hp:1.0, dmg:1.0,  spd:1.00, cnt:1.0,  bonus:0.0, blurb:'The swarm is waking up.' },
+  { name:'Hardened',   hp:1.5, dmg:1.35, spd:1.04, cnt:1.1,  bonus:0.2, blurb:'They hit harder. Elites now carry traits.' },
+  { name:'Brutal',     hp:2.3, dmg:1.8,  spd:1.08, cnt:1.2,  bonus:0.4, blurb:'Faster, tougher, and meaner.' },
+  { name:'Nightmare',  hp:3.5, dmg:2.4,  spd:1.12, cnt:1.3,  bonus:0.6, blurb:'One path will not be enough.' },
+  { name:'Extinction', hp:5.2, dmg:3.2,  spd:1.16, cnt:1.4,  bonus:0.8, blurb:'The hive wants you gone.' },
+];
+const TIER_GROWTH = { hp: 1.5, dmg: 1.25, spd: 1.03, cnt: 1.0, bonus: 1.0 };
+const ELITE_TRAITS = { armored: { name:'Armored', col:'#b8c4d8', desc:'takes 35% less damage' }, frenzied: { name:'Frenzied', col:'#ff5a3a', desc:'moves 30% faster' }, splitting: { name:'Splitting', col:'#c8ff3a', desc:'bursts into hatchlings' } };
 // WORLDS: a run is five worlds, each ends in a boss. mix = spawn weights; th = ground theme.
 const WORLDS = [
   { name:'Hive Surface',   sub:'Scorched ground. They are coming.',     boss:'alpha',       mix:{skitter:10,darter:2},
@@ -202,35 +218,35 @@ const SURVIVORS = {
 /* ---------- weapons: lv(l) returns stats at level l ---------- */
 const b = (c) => c ? 1 : 0;
 const WEAPONS = {
-  pulse: { name:'Pulse Rifle', ab:'PR', col:'#6ad0ff', pair:'overcharge', evo:'railcannon',
+  pulse: { name:'Pulse Rifle', ab:'PR', col:'#6ad0ff', pair:'cycler', evo:'railcannon',
     blurb:'Rapid fire at the nearest bug.',
     gain:{2:'+3 damage, faster fire',3:'+3 damage, faster, +1 bolt',4:'+3 damage, faster, bolts pierce',5:'+3 damage, faster, +1 bolt'},
     lv:l=>({ dmg:10+3*(l-1), cd:0.5-0.05*(l-1), n:1+b(l>=3)+b(l>=5), speed:560, pierce:b(l>=4), spread:0.13, assist:0.44 }) },
-  orbit: { name:'Orbit Drones', ab:'OD', col:'#ff9a3a', pair:'jets', evo:'cyclone',
+  orbit: { name:'Orbit Drones', ab:'OD', col:'#ff9a3a', pair:'magnet', evo:'cyclone',
     blurb:'Drones circle you and shred anything they touch.',
     gain:{2:'+4 damage, +1 drone, faster spin',3:'+4 damage, faster spin',4:'+4 damage, +1 drone, faster spin',5:'+4 damage, faster spin, wider orbit'},
     lv:l=>({ dmg:12+4*(l-1), n:2+b(l>=2)+b(l>=4), radius:l>=5?115:95, hitCd:0.35-0.02*(l-1), spin:2.4+0.4*(l-1) }) },
-  seeker: { name:'Smart Missiles', ab:'SM', col:'#e86bff', pair:'magnet', evo:'swarm',
+  seeker: { name:'Smart Missiles', ab:'SM', col:'#e86bff', pair:'chip', evo:'swarm',
     blurb:'Homing missiles fan out at nearby bugs.',
     gain:{2:'+2 damage, +1 missile, faster reload',3:'+2 damage, faster reload',4:'+2 damage, +1 missile, faster reload',5:'+2 damage, +1 missile, faster reload'},
     lv:l=>({ dmg:8+2*(l-1), cd:1.0-0.08*(l-1), n:2+b(l>=2)+b(l>=4)+b(l>=5), fan:0.34, range:420, turn:240, speed:330 }) },
-  aura: { name:'Shield Pulse', ab:'SP', col:'#7affb0', pair:'implant', evo:'sunwell',
+  aura: { name:'Shield Pulse', ab:'SP', col:'#7affb0', pair:'plating', evo:'sunwell',
     blurb:'A damage field around you. Hurts whatever gets close.',
     gain:{2:'+2 damage, +12 radius, faster ticks',3:'+2 damage, +12 radius, faster ticks',4:'+2 damage, +12 radius, faster ticks',5:'+2 damage, +12 radius, faster ticks'},
     lv:l=>({ dmg:6+2*(l-1), radius:80+12*(l-1), tick:0.5-0.04*(l-1) }) },
-  arc: { name:'Tesla Coil', ab:'TC', col:'#ffe94a', pair:'cycler', evo:'tempest',
+  arc: { name:'Tesla Coil', ab:'TC', col:'#ffe94a', pair:'overcharge', evo:'tempest',
     blurb:'Lightning strikes a bug and chains onward.',
     gain:{2:'+4 damage, faster, longer reach',3:'+4 damage, +1 chain, faster, longer reach',4:'+4 damage, faster, longer reach',5:'+4 damage, +1 chain, faster, longer reach'},
     lv:l=>({ dmg:14+4*(l-1), cd:1.2-0.1*(l-1), chains:2+b(l>=3)+b(l>=5), range:380+25*(l-1), chainR:130, cone:(100+20*(l-1))*Math.PI/180 }) },
-  nova: { name:'Cryo Burst', ab:'CB', col:'#9ae8ff', pair:'optics', evo:'zero',
+  nova: { name:'Cryo Burst', ab:'CB', col:'#9ae8ff', pair:'implant', evo:'zero',
     blurb:'Radial burst that damages and slows everything nearby.',
     gain:{2:'+3 damage, +15 radius, faster',3:'+3 damage, +15 radius, faster',4:'+3 damage, +15 radius, stronger slow, faster',5:'+3 damage, +15 radius, faster'},
     lv:l=>({ dmg:9+3*(l-1), cd:2.4-0.25*(l-1), radius:130+15*(l-1), slow:l>=4?0.55:0.4, slowT:1.5, freeze:0 }) },
-  axes: { name:'Rebound Frags', ab:'RF', col:'#ff6a5a', pair:'plating', evo:'juggernaut',
+  axes: { name:'Rebound Frags', ab:'RF', col:'#ff6a5a', pair:'jets', evo:'juggernaut',
     blurb:'Hurls frags the way you are moving. They pierce, then return.',
     gain:{2:'+5 damage, faster',3:'+5 damage, +1 frag, faster',4:'+5 damage, faster',5:'+5 damage, +1 frag, faster'},
     lv:l=>({ dmg:16+5*(l-1), cd:1.5-0.1*(l-1), n:1+b(l>=3)+b(l>=5), dist:300, speed:380, size:1 }) },
-  starfall: { name:'Orbital Strike', ab:'OS', col:'#ffb43a', pair:'chip', evo:'midas',
+  starfall: { name:'Orbital Strike', ab:'OS', col:'#ffb43a', pair:'optics', evo:'midas',
     blurb:'Strikes rain down on bugs. Warning ring, then boom.',
     gain:{2:'+7 damage, +1 strike, bigger blast',3:'+7 damage, bigger blast, faster',4:'+7 damage, +1 strike, bigger blast',5:'+7 damage, +1 strike, bigger blast'},
     lv:l=>({ dmg:24+7*(l-1), cd:1.8-0.12*(l-1), n:1+b(l>=2)+b(l>=4)+b(l>=5), range:460, warn:0.6, blast:80+10*(l-1) }) },
@@ -254,15 +270,30 @@ const EVOS = {
     stats:()=>({ dmg:55, cd:1.2, n:5, range:480, warn:0.6, blast:120, midas:true }) },
 };
 
+// Ascension: a second evolution, earned with a core from a tier boss. Each form needs one held passive; with none held you get the plain upgrade.
+const ASCEND = {
+  railcannon: { forms:[
+    { id:'lance',   name:'Lance Cannon',   need:'optics',     desc:'2 huge bolts that pierce everything. 60 dmg.', stats:{ dmg:60, cd:0.34, n:2, pierce:99, speed:780, spread:0.04, big:1.8 } },
+    { id:'barrage', name:'Gauss Barrage',  need:'overcharge', desc:'A wall of 8 bolts. 30 dmg each, wide spread.',  stats:{ dmg:30, cd:0.3,  n:8, pierce:2,  spread:0.3 } } ] },
+  zero: { forms:[
+    { id:'deep',    name:'Deep Freeze',    need:'optics',     desc:'Massive 340 px blast. Freezes solid for 1.6 s.', stats:{ dmg:34, cd:2.0, radius:340, freeze:1.6 } },
+    { id:'storm',   name:'Cryo Storm',     need:'cycler',     desc:'Rapid pulses every 0.7 s. Keeps everything chilled.', stats:{ dmg:30, cd:0.7, radius:215, freeze:0.5 } } ] },
+  cyclone: { forms:[
+    { id:'reaper',  name:'Reaper Ring',    need:'overcharge', desc:'5 heavy drones, 64 dmg, hit again quickly.', stats:{ dmg:64, n:5, hitCd:0.2, radius:125 } },
+    { id:'bulwark', name:'Bulwark Ring',   need:'plating',    desc:'10 drones on a wide ring. Slows and grinds.', stats:{ dmg:30, n:10, radius:150, slow:0.4 } } ] },
+};
+const ASCEND_DEFAULT = { dmg:1.4, cd:0.85, n:1, radius:1.1 };
+const ASCEND_EVERY = 5; // a tier boss every N sectors drops one core
+
 const PASSIVES = {
-  overcharge:{ name:'Overcharge Cells', ab:'OC', col:'#ff5a7a', pair:'pulse',    desc:'+8% all damage' },
-  jets:      { name:'Jump Jets',        ab:'JJ', col:'#5affd0', pair:'orbit',    desc:'+6% move speed' },
-  magnet:    { name:'Salvage Magnet',   ab:'SM', col:'#7a9aff', pair:'seeker',   desc:'+25% pickup radius' },
-  implant:   { name:'Medkit Implant',   ab:'MI', col:'#ff7a9a', pair:'aura',     desc:'+20 Max HP, heal 20' },
-  cycler:    { name:'Rapid Cycler',     ab:'RC', col:'#ffd84a', pair:'arc',      desc:'+6% attack speed' },
-  optics:    { name:'Blast Optics',     ab:'BO', col:'#8ae0ff', pair:'nova',     desc:'+8% area' },
-  plating:   { name:'Ceramic Plating',  ab:'CP', col:'#c0c8d8', pair:'axes',     desc:'+1 Armor, +0.15 HP/s regen' },
-  chip:      { name:'Requisition Chip', ab:'RQ', col:'#ffd24a', pair:'starfall', desc:'+10% XP, +10% credits' },
+  overcharge:{ name:'Overcharge Cells', ab:'OC', col:'#ff5a7a', pair:'arc',    desc:'+8% all damage' },
+  jets:      { name:'Jump Jets',        ab:'JJ', col:'#5affd0', pair:'axes',    desc:'+6% move speed' },
+  magnet:    { name:'Salvage Magnet',   ab:'SM', col:'#7a9aff', pair:'orbit',   desc:'+25% pickup radius' },
+  implant:   { name:'Medkit Implant',   ab:'MI', col:'#ff7a9a', pair:'nova',     desc:'+20 Max HP, heal 20' },
+  cycler:    { name:'Rapid Cycler',     ab:'RC', col:'#ffd84a', pair:'pulse',      desc:'+6% attack speed' },
+  optics:    { name:'Blast Optics',     ab:'BO', col:'#8ae0ff', pair:'starfall',     desc:'+8% area' },
+  plating:   { name:'Ceramic Plating',  ab:'CP', col:'#c0c8d8', pair:'aura',     desc:'+1 Armor, +0.15 HP/s regen' },
+  chip:      { name:'Requisition Chip', ab:'RQ', col:'#ffd24a', pair:'seeker', desc:'+10% XP, +10% credits' },
 };
 
 const SHOP = [
@@ -415,7 +446,7 @@ function newRun(sid) {
     sid, t: 0, over: false, level: 1, xp: 0, xpNeed: xpNeed(1), pend: 0, kills: 0, coins: 0, gems: 0, evos: 0, dmgDealt: 0,
     weapons: [], passives: [], offer: null, rerolls: TUNING.baseRerolls + (SAVE.shop.reroll || 0), banishes: 1 + (SAVE.shop.banish || 0), banished: {},
     player: { x: 0, y: 0, aim: 0, muzzle: 0, r: TUNING.player.radius, hp: 100, maxhp: 100, fx: 1, fy: 0, invuln: 0, flash: 0, regenAcc: 0, vx: 0, vy: 0 },
-    st: null, spawnT: 0, eliteT: TUNING.eliteFirstSec, surgeIdx: 0, surgeWarned: false, bossSpawned: {}, bossT: 0, world: 0, worldT: 0, brk: 0, wSurge: false, wBoss: false, perkPend: false, perkMode: false, pb: { might: 0, swift: 0, area: 0, move: 0, xp: 0, hp: 0 }, worldsCleared: 0, perks: [], depth: 0, sector: 1, D: 0, adapt: 0, nextBossDepth: TUNING.endlessCfg.bossEvery, bossN: 0, surgeNext: TUNING.endlessCfg.surgeEvery, firstLap: false, propT: 8,
+    st: null, spawnT: 0, eliteT: TUNING.eliteFirstSec, surgeIdx: 0, surgeWarned: false, bossSpawned: {}, bossT: 0, world: 0, worldT: 0, brk: 0, wSurge: false, wBoss: false, perkPend: false, cores: 0, ascMode: false, ascends: 0, perkMode: false, pb: { might: 0, swift: 0, area: 0, move: 0, xp: 0, hp: 0 }, worldsCleared: 0, perks: [], depth: 0, sector: 1, D: 0, adapt: 0, nextBossDepth: TUNING.endlessCfg.bossEvery, bossN: 0, surgeNext: TUNING.endlessCfg.surgeEvery, firstLap: false, propT: 8,
     shake: 0, banner: null, flashFx: null, slow: 0, chain: 0, lastGemT: -9, trail: [], jug: [], sunK: 0, swarmK: 0,
     chests: 0, magnetFlash: 0, victory: false, victoryT: 0, ended: false, nextBlink: 0,
   };
@@ -452,7 +483,32 @@ function addWeapon(run, id) {
   const w = { id, level: 1, evo: null, cd: 0.3, s: null, ang: 0, tick: 0, blades: [] };
   w.s = WEAPONS[id].lv(1); run.weapons.push(w); return w;
 }
-function weaponStats(w) { return w.evo ? EVOS[w.evo].stats() : WEAPONS[w.id].lv(w.level); }
+function ascForms(evo) { return (ASCEND[evo] && ASCEND[evo].forms) || []; }
+function ascName(w) { const f = ascForms(w.evo).find((x) => x.id === w.asc); return f ? f.name : EVOS[w.evo].name + ' II'; }
+function weaponStats(w) {
+  if (!w.evo) return WEAPONS[w.id].lv(w.level);
+  const base = EVOS[w.evo].stats(); if (!w.asc) return base;
+  const f = ascForms(w.evo).find((x) => x.id === w.asc); if (f) return Object.assign(base, f.stats);
+  base.dmg *= ASCEND_DEFAULT.dmg; if (base.cd) base.cd *= ASCEND_DEFAULT.cd; if (base.n) base.n += ASCEND_DEFAULT.n; if (base.radius) base.radius *= ASCEND_DEFAULT.radius;
+  return base;
+}
+function ascendables(run) { return run.weapons.filter((w) => w.evo && !w.asc); }
+function ascCards(run) {
+  const out = [];
+  for (const w of ascendables(run)) {
+    const forms = ascForms(w.evo), ok = forms.filter((f) => pLevel(run, f.need) > 0);
+    if (ok.length) for (const f of ok) out.push({ type: 'asc', id: w.id, form: f.id });
+    else out.push({ type: 'asc', id: w.id, form: 'plain' });
+  }
+  for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+  return out.slice(0, 3);
+}
+function ascendWeapon(run, wid, form) {
+  const w = run.weapons.find((x) => x.id === wid); if (!w || !w.evo || w.asc) return;
+  w.asc = form === 'plain' ? 'plain' : form; w.s = weaponStats(w); w.cd = 0.05; run.cores--; run.ascends = (run.ascends || 0) + 1;
+  run.flashFx = { col: EVOS[w.evo].col, t: 0.8, max: 0.8 }; run.slow = 0.5; shake(TUNING.shakePx); SFX.evo();
+  banner('ASCENDED: ' + ascName(w).toUpperCase(), (ascForms(w.evo).find((x) => x.id === w.asc) || { desc: 'Stronger and faster.' }).desc, 3.6, EVOS[w.evo].col);
+}
 function evoReady(run, w) { return !w.evo && w.level >= 5 && pLevel(run, WEAPONS[w.id].pair) > 0; }
 
 /* ---------------- XP + level-up offer ---------------- */
@@ -508,7 +564,8 @@ function applyCard(run, c) {
     else if (c.id === 'edmg') pb.might += 0.04; else if (c.id === 'erate') pb.swift += 0.03; else if (c.id === 'earea') pb.area += 0.03; else if (c.id === 'emove') pb.move += 0.03; else if (c.id === 'ehp') pb.hp += 10 / 15;
     else if (c.id === 'optics') pb.area += 0.12; else if (c.id === 'servos') pb.move += 0.10; else if (c.id === 'rights') { pb.xp += 0.15; addCoins(run, 40, true); }
     recalc(run); if (c.id === 'surgeon') run.player.hp = run.player.maxhp; if (c.id === 'ehp') run.player.hp = Math.min(run.player.maxhp, run.player.hp + 10);
-  } else if (c.type === 'skip') addCoins(run, TUNING.skipCoins, true);
+  } else if (c.type === 'asc') ascendWeapon(run, c.id, c.form);
+  else if (c.type === 'skip') addCoins(run, TUNING.skipCoins, true);
 }
 function addCoins(run, n, raw) {
   n = raw ? n : Math.floor(n * run.st.coinMul + rnd());
@@ -543,21 +600,19 @@ function ringPoint(distMin, distMax, ang) {
 }
 function edgeDist() { const h = viewHalfDiag(); return [h + TUNING.spawnRingMin, h + TUNING.spawnRingMax]; }
 
-function endlessPower(run) {
-  let p = 0; for (const w of run.weapons) p += w.evo ? 8 : w.level; for (const q of run.passives) p += q.level;
-  p += run.perks.length * 1.5; let shop = 0; for (const k in SAVE.shop) shop += SAVE.shop[k] || 0; p += shop * TUNING.endlessCfg.shopW;
-  return p;
-}
+function tierOf(sector) { return Math.floor((sector - 1) / 5); }
+function tierVal(tier, key) { const L = TIERS.length; if (tier < L) return TIERS[tier][key]; return TIERS[L - 1][key] * Math.pow(TIER_GROWTH[key], tier - L + 1); }
+function tierName(tier) { return tier < TIERS.length ? TIERS[tier].name : 'Extinction +' + (tier - TIERS.length + 1); }
 function endlessClock(run) {
-  const D = run.D, a = run.adapt || 0; // adapt: grows while you are crushing the swarm, shrinks when you are in trouble
-  return { target: Math.min(190, (25 + 8.7 * D) * (1 + 0.12 * Math.min(a, 4))), hp: (1 + 0.5 * D) * (1 + a), dmg: Math.min(3.6, (1 + 0.047 * D) * (1 + 0.08 * a)) };
+  const D = run.D, tr = tierOf(run.sector), g = run.sector === 1 ? 0.7 : run.sector === 2 ? 0.85 : 1; // sectors 1-2 are deliberately gentle
+  return { target: Math.min(190, (25 + 8.7 * D) * tierVal(tr, 'cnt') * g), hp: (1 + 0.5 * D) * tierVal(tr, 'hp') * g, dmg: Math.min(7, (1 + 0.047 * D) * tierVal(tr, 'dmg') * (0.85 + 0.15 * g)), spd: Math.min(1.4, tierVal(tr, 'spd')) };
 }
 function clockAt(t) {
   if (TUNING.endless && G.run) return endlessClock(G.run);
-  if (t >= TUNING.runLengthSec) { const l = CLOCK[CLOCK.length - 1]; return { target: l[1], hp: l[2], dmg: l[3] }; }
+  if (t >= TUNING.runLengthSec) { const l = CLOCK[CLOCK.length - 1]; return { target: l[1], hp: l[2], dmg: l[3], spd: 1 }; }
   const i = Math.min(CLOCK.length - 2, Math.floor(t / 60)), a = CLOCK[i], c = CLOCK[i + 1], f = (t - a[0]) / 60;
   const lastSeg = i === CLOCK.length - 2; // 14:00-15:00 holds the 14:00 target, then drops at 15:00
-  return { target: lastSeg ? a[1] : a[1] + (c[1] - a[1]) * f, hp: a[2] + (c[2] - a[2]) * f, dmg: a[3] + (c[3] - a[3]) * f };
+  return { target: lastSeg ? a[1] : a[1] + (c[1] - a[1]) * f, hp: a[2] + (c[2] - a[2]) * f, dmg: a[3] + (c[3] - a[3]) * f, spd: 1 };
 }
 
 function spawnEnemy(type, x, y, o) {
@@ -568,10 +623,11 @@ function spawnEnemy(type, x, y, o) {
   e.on = true; e.type = type; e.def = def; e.x = x; e.y = y; e.prop = !!o.prop; e.boss = !!def.boss; e.elite = !!o.elite; e.big = e.boss || e.elite || type === 'brute';
   const hpm = e.boss ? TUNING.bossHpMult : ck.hp;
   e.max = e.hp = (o.hp !== undefined ? o.hp : def.hp * hpm * (e.elite ? TUNING.eliteHpMult : 1));
-  e.sp = def.sp * (e.elite ? TUNING.eliteSpeedMult : 1); e.dmg = def.dmg * ck.dmg * (e.elite ? TUNING.eliteDmgMult : 1);
+  e.sp = def.sp * (e.elite ? TUNING.eliteSpeedMult : 1) * (ck.spd || 1); e.dmg = def.dmg * ck.dmg * (e.elite ? TUNING.eliteDmgMult : 1);
   e.r = def.r * (e.elite ? TUNING.eliteScale : 1); e.mass = def.mass * (e.elite ? 2 : 1); e.xp = def.xp;
   e.hitT = 0; e.slowT = 0; e.slowAmt = 0; e.freezeT = 0; e.obT = 0; e.ph = rnd() * TAU; e.st = 0; e.stT = 0; e.flash = 0; e.t = 0; e.bt = type === 'brood' ? 3 : (type === 'latcher' || type === 'leech') ? 0.5 : 5; e.enraged = false; e.ang = 0; e.dx = 1; e.dy = 0; e.lastSrc = '';
-  e.kindProp = o.kindProp || ''; e.invul = false; e.tx = 0; e.ty = 0;
+  e.kindProp = o.kindProp || ''; e.invul = false; e.tx = 0; e.ty = 0; e.trait = ''; e.dr = 0;
+  if (e.elite && TUNING.endless && tierOf(G.run.sector) >= 1) { const ks = Object.keys(ELITE_TRAITS); e.trait = ks[Math.floor(rnd() * ks.length)]; if (e.trait === 'armored') e.dr = 0.35; else if (e.trait === 'frenzied') e.sp *= 1.3; }
   if (type === 'bomber') e.dmg = 22 * ck.dmg;
   return e;
 }
@@ -595,13 +651,14 @@ function dropXP(x, y, v) {
   for (let i = 0; i < v; i++) dropItem('gem', x + R(-8, 8), y + R(-8, 8), 1);
 }
 function dropCoins(x, y, n) {
-  n = Math.floor(n * G.run.st.coinMul * TUNING.coinScale + rnd()); if (n <= 0) return;
+  n = Math.floor(n * G.run.st.coinMul * TUNING.coinScale * (TUNING.endless ? 1 + tierVal(tierOf(G.run.sector), 'bonus') : 1) + rnd()); if (n <= 0) return;
   dropItem('coin', x, y, n);
 }
 
 /* ---------- damage ---------- */
 function hitEnemy(e, d, nx, ny, kb, src) {
   if (!e.on || e.invul) return; const run = G.run;
+  if (e.dr) d *= 1 - e.dr;
   e.hp -= d; run.dmgDealt += d; e.flash = 0.08; e.lastSrc = src || '';
   if (kb) { const k = e.big ? TUNING.bigKnockbackFrac : 1; e.x += nx * kb * k; e.y += ny * kb * k; }
   addNum(e.x, e.y - e.r, d, e.elite || e.boss ? '#ffd24a' : '#fff', e.elite || e.boss);
@@ -613,6 +670,14 @@ function explode(x, y, dmg) {
   const d = Math.hypot(P.x - x, P.y - y);
   if (d < R2 + P.r) hurtPlayer(dmg, null);
   for (let i = 0; i < ENEMY_N; i++) { const e = ENEMIES_P[i]; if (e.on && Math.hypot(e.x - x, e.y - y) < R2 + e.r) { const dd = Math.hypot(e.x - x, e.y - y) || 1; hitEnemy(e, 22, (e.x - x) / dd, (e.y - y) / dd, 0, 'bomb'); } }
+}
+function maybeHealDrop(run, e, x, y) {
+  const P = run.player, H = HEAL_DROP; if (run.t < (run.nextHealT || 0)) return;
+  let c = H.tier[Math.min(tierOf(run.sector), H.tier.length - 1)]; if (c <= 0) return;
+  const f = P.hp / P.maxhp;
+  if (f < H.lowBelow) c *= 1 + (H.lowMult - 1) * (H.lowBelow - f) / H.lowBelow; else if (f > H.highAbove) c *= H.highMult;
+  if (e.elite) c *= 3;
+  if (rnd() < c) { dropItem('heal', x, y, Math.round(H.base + H.perMax * P.maxhp)); run.nextHealT = run.t + H.cd; }
 }
 function killEnemy(e) {
   const run = G.run, P = run.player; if (!e.on) return; e.on = false;
@@ -639,7 +704,10 @@ function killEnemy(e) {
     dropXP(x, y, e.xp);
     if (t === 'brute' || t === 'charger') dropCoins(x, y, Math.round(R(2, 3)));
     else if (rnd() < TUNING.coinDropChance) dropCoins(x, y, 1);
+    maybeHealDrop(run, e, x, y);
   }
+  if (e.elite && HEAL_DROP.eliteExtinction && tierOf(run.sector) >= 4) dropItem('heal', x + 18, y, Math.round(HEAL_DROP.base + HEAL_DROP.perMax * P.maxhp));
+  if (e.trait === 'splitting') for (let i = 0; i < 5; i++) { const a = i * TAU / 5 + rnd(); const m = spawnEnemy('mini', x + Math.cos(a) * 24, y + Math.sin(a) * 24, { hp: 3 }); if (m) m.sp = 118; }
   if (t === 'splitter') for (let i = 0; i < 3; i++) { const a = i * TAU / 3 + rnd(); const m = spawnEnemy('mini', x + Math.cos(a) * 14, y + Math.sin(a) * 14, { hp: 3 }); if (m) { m.sp = 118; } }
   if (t === 'bomber') explode(x, y, 22 * clockAt(run.t).dmg);
   if (e.lastSrc === 'midas' && rnd() < 0.15) addCoins(run, 1);
@@ -673,12 +741,17 @@ function unlockAch(id) {
 function ringSpawnAngle() { const P = G.run.player; return Math.hypot(P.vx, P.vy) > 10 && rnd() < 0.6 ? Math.atan2(P.vy, P.vx) + R(-1.1, 1.1) : rnd() * TAU; }
 function activeMix(w) {
   const mix = Object.assign({}, WORLDS[w].mix);
-  if (TUNING.endless) for (const nb of NEW_BUGS) if (G.run.sector >= nb.sector) mix[nb.type] = (mix[nb.type] || 0) + nb.w;
+  if (TUNING.endless) for (const nb of NEW_BUGS) if (G.run.sector >= nb.sector) mix[nb.type] = (mix[nb.type] || 0) + nb.w * Math.min(1, NEW_BUG_RAMP.start + NEW_BUG_RAMP.perSector * (G.run.sector - nb.sector)); // eases in
   return mix;
 }
-function pickType(w, plants) {
+function specialCap(type) {
+  if (!TUNING.endless) return Infinity;
+  const nb = NEW_BUGS.find((x) => x.type === type); if (!nb) return Infinity;
+  return nb.cap + Math.min(NEW_BUG_RAMP.capMax, Math.floor((G.run.sector - nb.sector) / NEW_BUG_RAMP.capEvery));
+}
+function pickType(w, plants, cnt) {
   const mix = activeMix(w); let S = 0; const ws = [];
-  for (const id in mix) { if (id === 'plant' && plants >= 8) continue; ws.push([id, mix[id]]); S += mix[id]; }
+  for (const id in mix) { if (id === 'plant' && plants >= 8) continue; if (cnt && (cnt[id] || 0) >= specialCap(id)) continue; ws.push([id, mix[id]]); S += mix[id]; }
   let r = rnd() * S; for (const [id, wt] of ws) { r -= wt; if (r <= 0) return id; }
   return 'skitter';
 }
@@ -690,10 +763,13 @@ function lapName(run) { return WORLDS[run.world].name; }
 function startSector() {
   const run = G.run; run.sector++; run.world = (run.sector - 1) % WORLDS.length; run.worldT = 0; run.wBoss = false; run.spawnT = 1;
   const W = WORLDS[run.world]; run.flashFx = { col: W.col, t: 1.0, max: 1.0 }; run.slow = 0.35; shake(TUNING.shakePx);
-  banner('SECTOR ' + run.sector + ' \u00b7 ' + lapName(run).toUpperCase(), (NEW_BUGS.find((nb) => nb.sector === run.sector) ? 'NEW: ' + NEW_BUGS.find((nb) => nb.sector === run.sector).note : W.sub), 3.6, W.col); SFX.surge();
+  const tr = tierOf(run.sector);
+  if ((run.sector - 1) % 5 === 0) { { const nbn = NEW_BUGS.find((nb) => nb.sector === run.sector); banner('TIER: ' + tierName(tr).toUpperCase(), TIERS[Math.min(tr, TIERS.length - 1)].blurb + (nbn ? '  NEW: ' + nbn.note : ''), 4.6, '#ff5a3a'); } }
+  else banner('SECTOR ' + run.sector + ' \u00b7 ' + lapName(run).toUpperCase(), (NEW_BUGS.find((nb) => nb.sector === run.sector) ? 'NEW: ' + NEW_BUGS.find((nb) => nb.sector === run.sector).note : W.sub), 3.6, W.col); SFX.surge();
 }
 function worldClear() {
   const run = G.run; run.brk = TUNING.worldBreatherSec; run.perkPend = true; run.worldsCleared++;
+  if (TUNING.endless && run.sector % ASCEND_EVERY === 0) { run.cores++; setTimeout(() => { if (G.run === run && !run.over) banner('ASCENSION CORE', ascendables(run).length ? 'Upgrade an evolved weapon' : 'Held until you evolve a weapon', 3.4, '#ffd24a'); }, 1900); }
   banner(TUNING.endless ? 'SECTOR ' + run.sector + ' CLEARED' : 'WORLD ' + (run.world + 1) + ' CLEARED', TUNING.endless ? 'Grab the loot. Warping out...' : 'The swarm scatters. Grab the loot.', 3.2, '#b6f23a'); SFX.win();
   for (let i = 0; i < ENEMY_N; i++) { const e = ENEMIES_P[i]; if (e.on && !e.prop) { burst(e.x, e.y, 3, e.def.col, 120, 0.4); e.on = false; } }
   for (let i = 0; i < ITEM_N; i++) { const it = ITEM_P[i]; if (it.on && (it.kind === 'gem' || it.kind === 'coin')) it.mag = true; }
@@ -705,30 +781,22 @@ function directorStep(dt) {
   run.worldT += dt;
   if (TUNING.endless) {
     const E = TUNING.endlessCfg; run.depth = Math.floor(run.t / E.depthSec + run.kills / E.depthKills);
-    run.D = E.timeW * (run.t / 60) * (1 + run.t / 1800) + E.powerW * (endlessPower(run) / E.powerDiv * 1.0) + 0.6 * (run.sector - 1);
+    run.D = 2.4 * ((run.sector - 1) + Math.min(1.2, run.worldT / 150)); // difficulty = how far you have climbed, never how strong you are
     if (!run.firstLap && run.sector >= 6) { run.firstLap = true; SAVE.wins[run.sid] = true; SAVE.stats.wins++; unlockAch('win'); let all = true; for (const id in SURVIVORS) if (!SAVE.wins[id]) all = false; if (all) unlockAch('winall'); banner('FIRST LAP COMPLETE', 'Sector 6 - it only gets worse', 3.5, '#b6f23a'); }
   }
   if (TUNING.worldLevelSec) addXP(run, run.xpNeed / TUNING.worldLevelSec[run.world] * dt); // steady drip: guaranteed pace even if you can't collect gems
   const ck = clockAt(run.t); let target = ck.target;
-  let alive = 0, plants = 0, broodAlive = false;
-  for (let i = 0; i < ENEMY_N; i++) { const e = ENEMIES_P[i]; if (e.on && !e.prop) { alive++; if (e.type === 'plant') plants++; if (e.type === 'brood') broodAlive = true; } }
+  let alive = 0, plants = 0, broodAlive = false; const cnt = {};
+  for (let i = 0; i < ENEMY_N; i++) { const e = ENEMIES_P[i]; if (e.on && !e.prop) { alive++; cnt[e.type] = (cnt[e.type] || 0) + 1; if (e.type === 'plant') plants++; if (e.type === 'brood') broodAlive = true; } }
   if (broodAlive) target *= 0.7;
-  if (TUNING.endless && run.t > 120) {
-    run.adaptT = (run.adaptT || 0) - dt;
-    if (run.adaptT <= 0) {
-      run.adaptT = 5; const ratio = alive / Math.max(1, target), hpf = P.hp / P.maxhp;
-      if (ratio < 0.75 && hpf > 0.6) run.adapt = Math.min(8, (run.adapt || 0) + 0.08);   // swarm is being shredded: push back
-      else if (hpf < 0.35) run.adapt = Math.max(0, (run.adapt || 0) - 0.05);             // you are close to dying: ease off
-    }
-  }
   const [dmin, dmax] = edgeDist();
   run.spawnT -= dt;
   if (run.spawnT <= 0 && (TUNING.endless || run.t < T.runLengthSec + 600)) {
     run.spawnT = T.spawnTickSec;
-    const need = Math.min(Math.round(T.spawnBatchMax * (1 + 0.5 * Math.min(run.adapt || 0, 4))), Math.floor(target) - alive, T.maxAliveEnemies - alive);
+    const need = Math.min(T.spawnBatchMax, Math.floor(target) - alive, T.maxAliveEnemies - alive);
     const a0 = ringSpawnAngle();
     for (let i = 0; i < need; i++) {
-      const type = pickType(run.world, plants); let x, y;
+      const type = pickType(run.world, plants, cnt); cnt[type] = (cnt[type] || 0) + 1; let x, y;
       if (type === 'plant') { const a = rnd() * TAU, d = R(190, 330); x = P.x + Math.cos(a) * d; y = P.y + Math.sin(a) * d; plants++; }
       else { [x, y] = ringPoint(dmin, dmax, a0 + R(-0.7, 0.7)); }
       spawnEnemy(type, x, y);
@@ -739,7 +807,7 @@ function directorStep(dt) {
     run.eliteT += T.eliteEverySec;
     const pool = []; for (const id in activeMix(run.world)) if (id !== 'plant' && id !== 'skitter') pool.push(id);
     pool.push('skitter', 'skitter'); const type = pool[Math.floor(rnd() * pool.length)];
-    const [x, y] = ringPoint(dmin, dmax); if (spawnEnemy(type, x, y, { elite: true })) banner('ELITE', ENEMIES[type].name + ' - drops a chest', 2, '#ffd24a');
+    const [x, y] = ringPoint(dmin, dmax); { const el = spawnEnemy(type, x, y, { elite: true }); if (el) banner(el.trait ? ELITE_TRAITS[el.trait].name.toUpperCase() + ' ELITE' : 'ELITE', ENEMIES[type].name + (el.trait ? ' - ' + ELITE_TRAITS[el.trait].desc : ' - drops a chest'), 2.2, el.trait ? ELITE_TRAITS[el.trait].col : '#ffd24a'); }
   }
   if (TUNING.endless) {
     const E = TUNING.endlessCfg;
@@ -876,6 +944,7 @@ function updateItems(dt) {
   for (let i = 0; i < ITEM_N; i++) {
     const it = ITEM_P[i]; if (!it.on) continue;
     const dx = P.x - it.x, dy = P.y - it.y, d = Math.hypot(dx, dy) || 1;
+    if (it.kind === 'heal' && P.hp < P.maxhp * HEAL_DROP.lowBelow && d < HEAL_DROP.pull) { it.x += dx / d * 150 * dt; it.y += dy / d * 150 * dt; }
     if (it.kind === 'gem' || it.kind === 'coin') {
       if (it.mag || d < pr) { it.mag = true; it.sp = Math.min(TUNING.magnetSpeed + 300, it.sp + TUNING.magnetAccel * dt); it.x += dx / d * it.sp * dt; it.y += dy / d * it.sp * dt; }
       if (d < P.r + 8) {
@@ -945,7 +1014,7 @@ function firePulse(w) {
   const dmg = s.dmg * run.st.might, col = w.evo ? '#aaf6ff' : '#7ad8ff';
   for (let i = 0; i < s.n; i++) {
     const p = newProj(); if (!p) break; const a = base + (i - (s.n - 1) / 2) * s.spread;
-    p.kind = 'bolt'; p.x = P.x + Math.cos(a) * 16; p.y = P.y + Math.sin(a) * 16; p.vx = Math.cos(a) * s.speed; p.vy = Math.sin(a) * s.speed; p.dmg = dmg; p.r = (w.evo ? 7 : 5) * run.st.area; p.pierce = s.pierce; p.life = 1.3; p.col = col; p.evo = !!w.evo;
+    p.kind = 'bolt'; p.x = P.x + Math.cos(a) * 16; p.y = P.y + Math.sin(a) * 16; p.vx = Math.cos(a) * s.speed; p.vy = Math.sin(a) * s.speed; p.dmg = dmg; p.r = (w.evo ? 7 : 5) * (s.big || 1) * run.st.area; p.pierce = s.pierce; p.life = 1.3; p.col = col; p.evo = !!w.evo;
   }
   tone(w.evo ? 300 : 700, 0.05, 'square', 0.02, -200); P.muzzle = 0.07;
   return true;
@@ -1137,7 +1206,7 @@ function endRun(win) {
   const run = G.run; if (!run || run.ended) return; run.ended = true; run.over = true; run.win = win;
   const S = SAVE.stats;
   if (win) { addCoins(run, TUNING.victoryBonus, true); SAVE.wins[run.sid] = true; S.wins++; unlockAch('win'); let all = true; for (const id in SURVIVORS) if (!SAVE.wins[id]) all = false; if (all) unlockAch('winall'); }
-  S.runs++; S.time += run.t; S.bestTime = Math.max(S.bestTime, run.t); S.bestLevel = Math.max(S.bestLevel, run.level); S.bestDepth = Math.max(S.bestDepth || 0, run.sector || 1); if (TUNING.endless) addCoins(run, (run.sector || 1) * TUNING.endlessCfg.depthCoins, true);
+  S.runs++; S.time += run.t; S.bestTime = Math.max(S.bestTime, run.t); S.bestLevel = Math.max(S.bestLevel, run.level); S.bestDepth = Math.max(S.bestDepth || 0, run.sector || 1); if (TUNING.endless) addCoins(run, Math.round((run.sector || 1) * TUNING.endlessCfg.depthCoins * (1 + tierVal(tierOf(run.sector || 1), 'bonus'))), true);
   SAVE.best[run.sid] = Math.max(SAVE.best[run.sid] || 0, run.t);
   if (run.level >= 15) unlockAch('lvl15'); if (run.t >= 600) unlockAch('surv10');
   writeSave(); droneStop(); if (!win) SFX.lose();
@@ -1374,6 +1443,7 @@ function drawEnemy(e, t) {
     bugEyes(r * 0.5, 0, r * 0.22, 1.5, '#ffffff'); if (e.st === 1) glowDot(0, 0, r * 1.4, '#8f6ad8', 0.3);
   } else { ctx.fillStyle = C(base); ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill(); }
   ctx.restore();
+  if (e.elite && e.trait) { const tc = ELITE_TRAITS[e.trait].col; ctx.strokeStyle = tc; ctx.lineWidth = 4; ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(e.x, e.y + fly, r * 1.22, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; ctx.fillStyle = tc; ctx.font = 'bold 10px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.fillText(ELITE_TRAITS[e.trait].name.toUpperCase(), e.x, e.y - r * 1.4); }
   if (e.elite) { ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 3; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.arc(e.x, e.y + fly, r * 1.18, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; glowDot(e.x, e.y, r * 1.5, '#ffd24a', 0.1); }
   FLASH = false;
 }
@@ -1460,7 +1530,7 @@ function drawHUD(run, t) {
   // xp bar
   ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, 18); ctx.fillStyle = '#b6f23a'; ctx.fillRect(0, 0, W * clamp(run.xp / run.xpNeed, 0, 1), 18);
   ctx.fillStyle = '#10200a'; ctx.font = 'bold 12px system-ui,sans-serif'; ctx.textAlign = 'left'; ctx.fillText('LV ' + run.level, 8, 9);
-  ctx.textAlign = 'left'; ctx.font = 'bold 11px system-ui,sans-serif'; ctx.fillStyle = WORLDS[run.world].col; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 3; const wl = TUNING.endless ? 'SECTOR ' + run.sector + '  \u00b7  THREAT ' + Math.round((run.D || 0) * (1 + (run.adapt || 0))) : 'WORLD ' + (run.world + 1) + '/' + WORLDS.length; ctx.strokeText(wl, 8, 32); ctx.fillText(wl, 8, 32); ctx.fillText(TUNING.endless ? lapName(run) : WORLDS[run.world].name, 8, 46);
+  ctx.textAlign = 'left'; ctx.font = 'bold 11px system-ui,sans-serif'; ctx.fillStyle = WORLDS[run.world].col; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 3; const wl = TUNING.endless ? 'SECTOR ' + run.sector + '  \u00b7  ' + tierName(tierOf(run.sector)).toUpperCase() : 'WORLD ' + (run.world + 1) + '/' + WORLDS.length; ctx.strokeText(wl, 8, 32); ctx.fillText(wl, 8, 32); ctx.fillText(TUNING.endless ? lapName(run) : WORLDS[run.world].name, 8, 46);
   // timer + hp
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = 'bold 22px system-ui,sans-serif'; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 4; const tt = mmss(run.t); ctx.strokeText(tt, W / 2, 38); ctx.fillText(tt, W / 2, 38);
   const bw = Math.min(260, W * 0.5), bx = W / 2 - bw / 2;
@@ -1613,7 +1683,7 @@ function pauseView() {
   const run = G.run; let h = '<h2>Paused</h2><p class="sub">' + mmss(run.t) + ' &middot; Level ' + run.level + ' &middot; ' + run.kills + ' kills</p><div class="build">';
   for (const w of run.weapons) h += icon(itemInfo(w.evo || w.id), false);
   h += '</div><div class="build">'; for (const p of run.passives) h += icon(itemInfo(p.id), false); h += '</div>';
-  h += '<div class="evolist">'; for (const w of run.weapons) h += '<div><b>' + (w.evo ? EVOS[w.evo].name : WEAPONS[w.id].name) + '</b><span>' + evoLine(run, w.id) + '</span></div>'; h += '</div>';
+  h += '<div class="evolist">'; for (const w of run.weapons) h += '<div><b>' + (w.asc ? ascName(w) : w.evo ? EVOS[w.evo].name : WEAPONS[w.id].name) + '</b><span>' + evoLine(run, w.id) + '</span></div>'; h += '</div>';
   h += '<button class="btn pri" data-act="resume">Resume</button><button class="btn" data-act="pset">Settings</button><button class="btn" data-act="abandon">Abandon Run</button>';
   showScr(h, true);
 }
@@ -1622,10 +1692,13 @@ function resumeGame() { hideScr(); setScene('play'); G.acc = 0; auInit(); }
 // evolution status line for a weapon in the current run (or a weapon you could pick up)
 function evoLine(run, wid) {
   const W = WEAPONS[wid], E = EVOS[W.evo], P = PASSIVES[W.pair], w = run.weapons.find((x) => x.id === wid);
-  if (w && w.evo) return 'Evolved: ' + E.name;
+  if (w && w.evo) {
+    if (w.asc) return 'Ascended: ' + ascName(w);
+    const nxt = Math.ceil(Math.max(1, run.sector) / ASCEND_EVERY) * ASCEND_EVERY, fm = ascForms(w.evo);
+    return 'Evolved: ' + E.name + '. Ascends with a core from the sector ' + nxt + ' boss' + (fm.length ? ' (' + fm.map((f) => f.name + ': ' + PASSIVES[f.need].name).join(' / ') + ')' : '');
+  }
   const hasP = pLevel(run, W.pair) > 0, lv = w ? w.level : 0;
-  const bits = [(lv >= 5 ? '&#10003; ' : '') + 'Lv ' + lv + '/5', (hasP ? '&#10003; ' : '') + P.name, 'open a chest'];
-  return 'Evolves to ' + E.name + ': ' + bits.join(' + ');
+  return 'Evolves to ' + E.name + ': ' + (lv >= 5 ? '&#10003; ' : '') + 'weapon Lv ' + lv + '/5 &middot; ' + (hasP ? '&#10003; ' : '') + P.name + ' (any level) &middot; then open a chest';
 }
 function cardView(c, i) {
   let info, tag = '', desc = '', pair = '';
@@ -1635,7 +1708,13 @@ function cardView(c, i) {
     const w = G.run.weapons.find((x) => x.id === c.id); pair = evoLine(G.run, c.id); if (w && w.level === 4 && pLevel(G.run, WEAPONS[c.id].pair)) pair = 'Max level! Open a chest to evolve into ' + EVOS[WEAPONS[c.id].evo].name + '.';
   } else if (c.type === 'p') {
     info = itemInfo(c.id); tag = c.nw ? '<span class="ctag">NEW</span>' : '<span class="ctag lv">Lv ' + (c.to - 1) + ' &rarr; ' + c.to + '</span>';
-    desc = PASSIVES[c.id].desc + ' per level'; { const ww = Object.keys(WEAPONS).find((k) => WEAPONS[k].pair === c.id), has = G.run.weapons.some((x) => x.id === ww); pair = 'Evolves ' + WEAPONS[ww].name + ' into ' + EVOS[WEAPONS[ww].evo].name + (has ? ' (you have the weapon)' : ' (needs the weapon)'); }
+    desc = PASSIVES[c.id].desc + ' per level'; { const ww = Object.keys(WEAPONS).find((k) => WEAPONS[k].pair === c.id), has = G.run.weapons.some((x) => x.id === ww); pair = 'Evolves ' + WEAPONS[ww].name + ' into ' + EVOS[WEAPONS[ww].evo].name + (has ? ' (you have the weapon)' : ' (needs the weapon)'); const unl = []; for (const ek in ASCEND) for (const f of ASCEND[ek].forms) if (f.need === c.id) unl.push(f.name); if (unl.length) pair += '. Unlocks ascension: ' + unl.join(', '); }
+  } else if (c.type === 'asc') {
+    const w = G.run.weapons.find((x) => x.id === c.id), E = EVOS[w.evo], forms = ascForms(w.evo), f = forms.find((x) => x.id === c.form);
+    info = { col: E.col, ab: E.name.split(' ').map((t) => t[0]).join('').slice(0, 2), name: f ? f.name : E.name + ' II' }; tag = '<span class="ctag">ASCEND</span>';
+    desc = f ? f.desc : 'Stronger and faster. +40% damage, quicker, more shots.';
+    const lock = forms.filter((x) => x.id !== c.form && pLevel(G.run, x.need) === 0).map((x) => x.name + ' (needs ' + PASSIVES[x.need].name + ')');
+    pair = lock.length ? 'Locked: ' + lock.join(', ') : '';
   } else if (c.type === 'wp') { const wp = WORLD_PERKS[c.id]; info = { col: wp.col, ab: wp.ab, name: wp.name }; desc = wp.desc; tag = '<span class="ctag">PERK</span>'; }
   else if (c.id === 'feast') { info = { col: '#e8f6e0', ab: '+HP', name: 'Field Rations' }; info.name = 'Field Rations'; desc = 'Heal ' + TUNING.feastHeal + ' HP.'; }
   else { info = { col: '#ffd24a', ab: '$', name: 'Requisition' }; desc = '+' + TUNING.purseCoins + ' credits.'; }
@@ -1650,8 +1729,17 @@ function openPerk() {
   const run = G.run; run.perkMode = true; run.perkPend = false;
   G.scene = 'levelup'; setScene('levelup'); SFX.level(); run.offer = drawPerks(run); banishMode = false; levelView();
 }
+function openAscend() {
+  const run = G.run; run.ascMode = true; run.offer = ascCards(run);
+  if (!run.offer.length) { run.ascMode = false; return false; }
+  G.scene = 'levelup'; setScene('levelup'); SFX.level(); banishMode = false; levelView(); return true;
+}
 function levelView() {
   const run = G.run;
+  if (run.ascMode) {
+    let h = '<h2>ASCENSION</h2><p class="sub">Your core upgrades one evolved weapon. Forms depend on the passives you hold.</p><div class="cards">';
+    run.offer.forEach((c, i) => { h += cardView(c, i); }); h += '</div>'; showScr(h, true); return;
+  }
   if (run.perkMode) {
     let h = '<h2>' + (TUNING.endless ? 'SECTOR ' + run.sector + ' CLEARED' : 'WORLD ' + (run.world + 1) + ' CLEARED') + '</h2><p class="sub">Choose a perk for the rest of the run</p><div class="cards">';
     run.offer.forEach((c, i) => { h += cardView(c, i); }); h += '</div>'; showScr(h, true); return;
@@ -1671,7 +1759,8 @@ function finishPick() {
 }
 function chooseCard(i) {
   const run = G.run; if (!run || G.scene !== 'levelup' || !run.offer) return; const c = run.offer[i]; if (!c) return;
-  if (run.perkMode) { SFX.click(); applyCard(run, c); run.perkMode = false; hideScr(); setScene('play'); G.acc = 0; return; }
+  if (run.ascMode) { SFX.click(); applyCard(run, c); run.ascMode = false; if (run.cores > 0 && openAscend()) return; hideScr(); setScene('play'); G.acc = 0; return; }
+  if (run.perkMode) { SFX.click(); applyCard(run, c); run.perkMode = false; if (run.cores > 0 && openAscend()) return; hideScr(); setScene('play'); G.acc = 0; return; }
   if (banishMode) { if (c.type === 'f') return; run.banished[c.type + c.id] = true; run.banishes--; banishMode = false; run.offer = drawOffer(run); levelView(); SFX.click(); return; }
   SFX.click(); applyCard(run, c); if (!SAVE.ach.lvl15 && run.level >= 15) unlockAch('lvl15'); finishPick();
 }
@@ -1680,7 +1769,7 @@ function showEnd() {
   const run = G.run; setScene('end'); const win = run.win, S = SURVIVORS[run.sid];
   let h = '<p class="big ' + (win ? 'win' : 'lose') + '">' + 'YOU FELL' + '</p>'
     + '<p class="sub">' + ('Sector ' + run.sector + ' reached. +' + run.sector * TUNING.endlessCfg.depthCoins + ' sector credits.') + '</p>'
-    + '<table class="st"><tr><td>Survivor</td><td>' + S.name + '</td></tr><tr><td>Time survived</td><td>' + mmss(run.t) + '</td></tr><tr><td>Sector reached</td><td>' + run.sector + ' &middot; best ' + SAVE.stats.bestDepth + '</td></tr><tr><td>Level</td><td>' + run.level + '</td></tr><tr><td>Kills</td><td>' + run.kills + '</td></tr>'
+    + '<table class="st"><tr><td>Survivor</td><td>' + S.name + '</td></tr><tr><td>Time survived</td><td>' + mmss(run.t) + '</td></tr><tr><td>Sector reached</td><td>' + run.sector + ' &middot; ' + tierName(tierOf(run.sector)) + ' &middot; best ' + SAVE.stats.bestDepth + '</td></tr><tr><td>Level</td><td>' + run.level + '</td></tr><tr><td>Kills</td><td>' + run.kills + '</td></tr>'
     + '<tr><td>Credits earned</td><td>' + run.coins + '</td></tr><tr><td>Evolutions</td><td>' + run.evos + '</td></tr><tr><td>Damage dealt</td><td>' + Math.round(run.dmgDealt).toLocaleString() + '</td></tr></table><div class="build">';
   for (const w of run.weapons) h += icon(itemInfo(w.evo || w.id), false); h += '</div><div class="build">'; for (const p of run.passives) h += icon(itemInfo(p.id), false);
   h += '</div><button class="btn pri" data-act="again" id="againBtn">Run Again</button>' + '' + '<button class="btn" data-act="menu">Menu</button>';
@@ -1712,9 +1801,9 @@ $('ui').addEventListener('click', (ev) => {
     case 'abandon': { hideScr(); endRun(false); break; }
     case 'again': startRun(); break;
     case 'card': chooseCard(parseInt(el.getAttribute('data-i'), 10)); break;
-    case 'reroll': { if (G.run.perkMode) break; const run = G.run; if (run.rerolls > 0) { run.rerolls--; run.offer = drawOffer(run); banishMode = false; levelView(); } break; }
-    case 'banish': { if (G.run.perkMode) break; const run = G.run; if (run.banishes > 0) { banishMode = !banishMode; levelView(); } break; }
-    case 'skip': { if (G.run.perkMode) break; const run = G.run; applyCard(run, { type: 'skip' }); finishPick(); break; }
+    case 'reroll': { if (G.run.perkMode || G.run.ascMode) break; const run = G.run; if (run.rerolls > 0) { run.rerolls--; run.offer = drawOffer(run); banishMode = false; levelView(); } break; }
+    case 'banish': { if (G.run.perkMode || G.run.ascMode) break; const run = G.run; if (run.banishes > 0) { banishMode = !banishMode; levelView(); } break; }
+    case 'skip': { if (G.run.perkMode || G.run.ascMode) break; const run = G.run; applyCard(run, { type: 'skip' }); finishPick(); break; }
   }
 });
 scr.addEventListener('input', (ev) => {
@@ -1783,5 +1872,5 @@ function frame(ts) {
   if (saveDirty && G.realT - lastSave > 1.5) { writeSave(); lastSave = G.realT; }
 }
 resize(); showMenu(); requestAnimationFrame(frame);
-window.__hf = { G, SAVE: () => SAVE, TUNING, stepSim, newRun, startRun, ENEMIES_P, ITEM_P, PROJ_P, giveXP, applyCard, drawOffer, drawPerks, openPerk, evolve, endRun, spawnEnemy, killEnemy, clockAt, recalc, mmss, openLevelUp, chooseCard };
+window.__hf = { G, SAVE: () => SAVE, TUNING, stepSim, newRun, startRun, ENEMIES_P, ITEM_P, PROJ_P, giveXP, applyCard, addWeapon, weaponStats, drawOffer, drawPerks, openPerk, openAscend, ascendWeapon, ascCards, evolve, endRun, spawnEnemy, killEnemy, clockAt, recalc, mmss, openLevelUp, chooseCard };
 </script></body></html>
