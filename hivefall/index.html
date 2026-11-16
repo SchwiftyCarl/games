@@ -118,7 +118,7 @@ const TUNING = {
   chestCoins: [30, 50], chestHeal: 20,
   bossHpMult: 1,                           // TWEAK: bosses ignore the clock HP multiplier
   skitterMinShare: 0.4,
-  xpScale: 0.5, worldXp: null, worldLevelSec: null, /* original rapid pacing restored; set worldXp/worldLevelSec arrays to re-enable per-world scaling / a steady level drip */ /* front-loaded per world so you have a build early; xpScale is the fallback */                            // TWEAK: global XP gem scale, tuned to the spec's level-pacing targets
+  xpScale: 0.5, worldXp: [0.4, 0.22, 0.14, 0.10, 0.08], worldLevelSec: null, /* original rapid pacing restored; set worldXp/worldLevelSec arrays to re-enable per-world scaling / a steady level drip */ /* front-loaded per world so you have a build early; xpScale is the fallback */                            // TWEAK: global XP gem scale, tuned to the spec's level-pacing targets
   coinScale: 0.3,                          // TWEAK: scales natural coin drops so a win lands near the spec's 700-1,000
   gemValues: { g1: 1, g5: 5, g25: 25 },
   magnetSpeed: 520, magnetAccel: 2600,
@@ -138,11 +138,11 @@ const CLOCK = [
 const ENEMIES = {
   skitter: { name:'Scuttler',  hp:8,  sp:72,  dmg:8,  r:13, xp:1, from:0,   w:0,  col:'#7f8c9b', mass:1 },
   darter:  { name:'Leaper',    hp:6,  sp:112, dmg:6,  r:11, xp:1, from:120, w:12, col:'#35d0e8', mass:1 },
-  brute:   { name:'Tanker',    hp:65, sp:46,  dmg:16, r:26, xp:5, from:180, w:8,  col:'#b5482e', mass:4 },
-  plant:   { name:'Spore Pod', hp:20, sp:0,   dmg:10, r:16, xp:2, from:240, w:5,  col:'#4fbf5a', mass:99 },
+  brute:   { name:'Tanker',    hp:65, sp:46,  dmg:16, r:26, xp:10, from:180, w:8,  col:'#b5482e', mass:4 },
+  plant:   { name:'Spore Pod', hp:20, sp:0,   dmg:10, r:16, xp:3, from:240, w:5,  col:'#4fbf5a', mass:99 },
   splitter:{ name:'Brood Sac', hp:18, sp:66,  dmg:8,  r:15, xp:1, from:300, w:10, col:'#e8a62c', mass:1 },
-  wraith:  { name:'Flyer',     hp:14, sp:92,  dmg:12, r:13, xp:2, from:420, w:10, col:'#b9a4e8', mass:1 },
-  charger: { name:'Rammer',    hp:26, sp:58,  dmg:18, r:16, xp:5, from:540, w:8,  col:'#ff7a1f', mass:2 },
+  wraith:  { name:'Flyer',     hp:14, sp:92,  dmg:12, r:13, xp:3, from:420, w:10, col:'#b9a4e8', mass:1 },
+  charger: { name:'Rammer',    hp:26, sp:58,  dmg:18, r:16, xp:8, from:540, w:8,  col:'#ff7a1f', mass:2 },
   bomber:  { name:'Bloater',   hp:12, sp:84,  dmg:0,  r:13, xp:2, from:660, w:8,  col:'#e8d82c', mass:1 },
   mini:    { name:'Hatchling', hp:3,  sp:118, dmg:4,  r:8,  xp:0, from:9999,w:0,  col:'#e8a62c', mass:1 },
   alpha:   { name:'Alpha Stalker',hp:650,  sp:78, dmg:18, r:32, xp:25, boss:true, col:'#5a6b82', mass:20 },
@@ -560,9 +560,10 @@ function dropItem(kind, x, y, v) {
 }
 function dropXP(x, y, v) {
   if (v <= 0) return;
-  if (v >= 25) dropItem('gem', x, y, 25);
-  else if (v >= 5) dropItem('gem', x + R(-6, 6), y + R(-6, 6), 5);
-  else for (let i = 0; i < v; i++) dropItem('gem', x + R(-8, 8), y + R(-8, 8), 1);
+  let n25 = Math.floor(v / 25); v -= n25 * 25; const n5 = Math.floor(v / 5); v -= n5 * 5;
+  for (let i = 0; i < n25; i++) dropItem('gem', x + R(-10, 10), y + R(-10, 10), 25);
+  for (let i = 0; i < n5; i++) dropItem('gem', x + R(-8, 8), y + R(-8, 8), 5);
+  for (let i = 0; i < v; i++) dropItem('gem', x + R(-8, 8), y + R(-8, 8), 1);
 }
 function dropCoins(x, y, n) {
   n = Math.floor(n * G.run.st.coinMul * TUNING.coinScale + rnd()); if (n <= 0) return;
@@ -600,9 +601,9 @@ function killEnemy(e) {
   burst(x, y, e.boss ? 40 : e.elite ? 16 : 5, e.def.col, e.boss ? 320 : 130, e.boss ? 1 : 0.45, e.boss ? 4 : 2.5);
   SFX.pop();
   const t = e.type;
-  if (e.elite) { dropItem('chest', x, y, 0); for (let i = 0; i < 3; i++) dropItem('gem', x + R(-14, 14), y + R(-14, 14), 5); dropCoins(x, y, Math.round(R(15, 25))); }
+  if (e.elite) { dropItem('chest', x, y, 0); dropXP(x, y, 30); dropCoins(x, y, Math.round(R(15, 25))); }
   else if (e.boss) {
-    dropItem('chest', x + 30, y, 0); dropItem('gem', x, y, 25);
+    dropItem('chest', x + 30, y, 0); dropXP(x, y, 75);
     const bc = BOSS_COINS[t]; if (bc && bc[0]) dropCoins(x, y, bc[0]);
     shake(TUNING.shakePx + 1); SFX.boss();
   } else {
