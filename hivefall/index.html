@@ -94,7 +94,7 @@ const TUNING = {
   aimMode: 'auto',                         // 'auto' = weapons target enemies themselves (original spec); 'facing' = fire where you face (+ lock button)
   runLengthSec: 900,                       // 15:00 - the Matriarch spawns
   player: { hp: 100, speed: 165, radius: 14, pickupRadius: 55, contactInvulnSec: 0.4 },
-  xpCurve: { base: 6, linear: 6, exponent: 1.85 },
+  xpCurve: { base: 5, linear: 4, exponent: 1.7 },
   gemMergeCap: 150,
   maxAliveEnemies: 220,
   enemyPoolSize: 300,                      // 220 cap + surges/minis/props headroom
@@ -118,7 +118,7 @@ const TUNING = {
   chestCoins: [30, 50], chestHeal: 20,
   bossHpMult: 1,                           // TWEAK: bosses ignore the clock HP multiplier
   skitterMinShare: 0.4,
-  xpScale: 0.2, worldXp: [0.15, 0.1, 0.07, 0.05, 0.04], worldLevelSec: [26, 36, 52, 70, 90], /* gems pay worldXp; on top of that a steady XP drip guarantees ~1 level per worldLevelSec so a build never stalls */ /* front-loaded per world so you have a build early; xpScale is the fallback */                            // TWEAK: global XP gem scale, tuned to the spec's level-pacing targets
+  xpScale: 0.5, worldXp: null, worldLevelSec: null, /* original rapid pacing restored; set worldXp/worldLevelSec arrays to re-enable per-world scaling / a steady level drip */ /* front-loaded per world so you have a build early; xpScale is the fallback */                            // TWEAK: global XP gem scale, tuned to the spec's level-pacing targets
   coinScale: 0.3,                          // TWEAK: scales natural coin drops so a win lands near the spec's 700-1,000
   gemValues: { g1: 1, g5: 5, g25: 25 },
   magnetSpeed: 520, magnetAccel: 2600,
@@ -662,7 +662,7 @@ function directorStep(dt) {
   run.t += dt;
   if (run.brk > 0) { if (!run.perkPend) { run.brk -= dt; if (run.brk <= 0) startWorld(run.world + 1); } return; }
   run.worldT += dt;
-  addXP(run, run.xpNeed / TUNING.worldLevelSec[run.world] * dt); // steady drip: guaranteed pace even if you can't collect gems
+  if (TUNING.worldLevelSec) addXP(run, run.xpNeed / TUNING.worldLevelSec[run.world] * dt); // steady drip: guaranteed pace even if you can't collect gems
   const ck = clockAt(run.t); let target = ck.target;
   let alive = 0, plants = 0, broodAlive = false;
   for (let i = 0; i < ENEMY_N; i++) { const e = ENEMIES_P[i]; if (e.on && !e.prop) { alive++; if (e.type === 'plant') plants++; if (e.type === 'brood') broodAlive = true; } }
