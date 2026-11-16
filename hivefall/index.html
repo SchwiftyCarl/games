@@ -36,6 +36,7 @@ h2{margin:0 0 10px;font-size:26px;color:#ff8a2b;letter-spacing:.04em}
 .btn.sm{display:inline-block;width:auto;min-width:120px;margin:6px 5px;padding:10px 14px;font-size:15px}
 .btn.off{opacity:.4;cursor:not-allowed}
 .btn.lime{border-color:#b6f23a;color:#e8ffb0;background:#1c2a0a}
+.help{color:#a89878;font-size:12px;line-height:1.45;margin:12px auto 0;max-width:360px;text-align:left}.help b{color:#f3e9d8}
 .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .coinbar{position:fixed;top:10px;right:14px;font-weight:800;color:#ffd24a;font-size:16px;z-index:5;pointer-events:none;display:none}
 .card{background:#1f130a;border:2px solid #6a3a16;border-radius:14px;padding:12px;text-align:left;cursor:pointer;min-height:96px;width:100%}
@@ -91,6 +92,9 @@ table.st td:last-child{text-align:right;font-weight:800;color:#ffd9b0}
    HIVEFALL — single-file survivor game. All balance lives here.
    ============================================================ */
 const TUNING = {
+  baseRerolls: 3,                          // free rerolls per run (the Reroll Charm in the shop adds more)
+  endless: true,                           // ENDLESS MODE: no fixed end; difficulty D = time + build power, depth ticks up forever
+  endlessCfg: { depthSec: 50, depthKills: 1000, biomeEvery: 3, bossEvery: 5, surgeEvery: 150, powerDiv: 2.5, timeW: 0.7, powerW: 0.3, shopW: 0.25, xpPerDepth: 0.025, bossHpPerStep: 0.4, depthCoins: 8, firstLapDepth: 15 },
   aimMode: 'auto',                         // 'auto' = weapons target enemies themselves (original spec); 'facing' = fire where you face (+ lock button)
   runLengthSec: 900,                       // 15:00 - the Matriarch spawns
   player: { hp: 100, speed: 165, radius: 14, pickupRadius: 55, contactInvulnSec: 0.4 },
@@ -118,7 +122,7 @@ const TUNING = {
   chestCoins: [30, 50], chestHeal: 20,
   bossHpMult: 1,                           // TWEAK: bosses ignore the clock HP multiplier
   skitterMinShare: 0.4,
-  xpScale: 0.5, worldXp: [0.4, 0.22, 0.14, 0.10, 0.08], worldLevelSec: null, /* original rapid pacing restored; set worldXp/worldLevelSec arrays to re-enable per-world scaling / a steady level drip */ /* front-loaded per world so you have a build early; xpScale is the fallback */                            // TWEAK: global XP gem scale, tuned to the spec's level-pacing targets
+  xpScale: 0.2, worldXp: null, worldLevelSec: null, /* original rapid pacing restored; set worldXp/worldLevelSec arrays to re-enable per-world scaling / a steady level drip */ /* front-loaded per world so you have a build early; xpScale is the fallback */                            // TWEAK: global XP gem scale, tuned to the spec's level-pacing targets
   coinScale: 0.3,                          // TWEAK: scales natural coin drops so a win lands near the spec's 700-1,000
   gemValues: { g1: 1, g5: 5, g25: 25 },
   magnetSpeed: 520, magnetAccel: 2600,
@@ -168,6 +172,12 @@ const WORLDS = [
 ];
 // One of three is offered after each world boss. pb = run-level bonus bag (stacks).
 const WORLD_PERKS = {
+  // endless-only repeatable cards (small, always available once your build is full)
+  edmg:    { name:'Overdrive',      ab:'OD', col:'#ff5a7a', desc:'+4% damage',          e:true },
+  erate:   { name:'Quickfire',      ab:'QF', col:'#ffd84a', desc:'+3% attack speed',    e:true },
+  earea:   { name:'Wide Burst',     ab:'WB', col:'#8ae0ff', desc:'+3% area',            e:true },
+  emove:   { name:'Light Boots',    ab:'LB', col:'#5affd0', desc:'+3% move speed',      e:true },
+  ehp:     { name:'Reinforce',      ab:'RF', col:'#ff7a9a', desc:'+10 Max HP, heal 10', e:true },
   surgeon: { name:'Field Surgeon',  ab:'FS', col:'#ff7a9a', desc:'Heal to full, +15 Max HP' },
   barrels: { name:'Hot Barrels',    ab:'HB', col:'#ff5a7a', desc:'+12% damage' },
   overclk: { name:'Overclock',      ab:'OV', col:'#ffd84a', desc:'+10% attack speed' },
@@ -258,8 +268,8 @@ const SHOP = [
   { id:'recovery', name:'Recovery',    desc:'+0.2 HP/s regen',   costs:[200,400,700] },
   { id:'greed',    name:'Salvage Rights',desc:'+6% credits earned',costs:[180,350,600] },
   { id:'wisdom',   name:'Training',    desc:'+5% XP gain',       costs:[180,350,600] },
-  { id:'reroll',   name:'Reroll Charm',desc:'+1 reroll per run', costs:[400,800] },
-  { id:'banish',   name:'Banish Charm',desc:'+1 banish per run', costs:[400,800] },
+  { id:'reroll',   name:'Reroll Charm',desc:'+1 reroll per run (you start with 3)', costs:[400,800] },
+  { id:'banish',   name:'Banish Charm',desc:'+1 banish per run (you start with 1)', costs:[400,800] },
 ];
 
 const ACHIEVEMENTS = [
@@ -286,7 +296,7 @@ const SAVE_KEY = 'hivefallSave.v1';
 function defaultSave() {
   return { v: 1, coins: 0, shop: {}, unlocked: { warden: true }, ach: {}, wins: {}, best: {}, sel: 'warden', seenEvo: false,
     settings: { vol: 0.6, mute: false, shake: true, dmgNums: true, theme: 'dusk', autoRetreat: false, lockToggle: false, lockSide: 'right', joyMode: 'float' },
-    stats: { runs: 0, wins: 0, time: 0, kills: 0, gems: 0, coins: 0, evos: 0, bestTime: 0, bestLevel: 0 } };
+    stats: { runs: 0, wins: 0, time: 0, kills: 0, gems: 0, coins: 0, evos: 0, bestTime: 0, bestLevel: 0, bestDepth: 0 } };
 }
 function mergeInto(dst, src) {
   for (const k in src) {
@@ -396,9 +406,9 @@ function newRun(sid) {
   for (const a of [ENEMIES_P, PROJ_P, ITEM_P, PART_P, NUM_P, FX_P, MET_P, ZONE_P, SPLAT_P]) for (let i = 0; i < a.length; i++) a[i].on = false;
   const run = {
     sid, t: 0, over: false, level: 1, xp: 0, xpNeed: xpNeed(1), pend: 0, kills: 0, coins: 0, gems: 0, evos: 0, dmgDealt: 0,
-    weapons: [], passives: [], offer: null, rerolls: 1 + (SAVE.shop.reroll || 0), banishes: 1 + (SAVE.shop.banish || 0), banished: {},
+    weapons: [], passives: [], offer: null, rerolls: TUNING.baseRerolls + (SAVE.shop.reroll || 0), banishes: 1 + (SAVE.shop.banish || 0), banished: {},
     player: { x: 0, y: 0, aim: 0, muzzle: 0, r: TUNING.player.radius, hp: 100, maxhp: 100, fx: 1, fy: 0, invuln: 0, flash: 0, regenAcc: 0, vx: 0, vy: 0 },
-    st: null, spawnT: 0, eliteT: TUNING.eliteFirstSec, surgeIdx: 0, surgeWarned: false, bossSpawned: {}, bossT: 0, world: 0, worldT: 0, brk: 0, wSurge: false, wBoss: false, perkPend: false, perkMode: false, pb: { might: 0, swift: 0, area: 0, move: 0, xp: 0, hp: 0 }, worldsCleared: 0, perks: [], propT: 8,
+    st: null, spawnT: 0, eliteT: TUNING.eliteFirstSec, surgeIdx: 0, surgeWarned: false, bossSpawned: {}, bossT: 0, world: 0, worldT: 0, brk: 0, wSurge: false, wBoss: false, perkPend: false, perkMode: false, pb: { might: 0, swift: 0, area: 0, move: 0, xp: 0, hp: 0 }, worldsCleared: 0, perks: [], depth: 0, sector: 1, D: 0, nextBossDepth: TUNING.endlessCfg.bossEvery, bossN: 0, surgeNext: TUNING.endlessCfg.surgeEvery, firstLap: false, propT: 8,
     shake: 0, banner: null, flashFx: null, slow: 0, chain: 0, lastGemT: -9, trail: [], jug: [], sunK: 0, swarmK: 0,
     chests: 0, magnetFlash: 0, victory: false, victoryT: 0, ended: false, nextBlink: 0,
   };
@@ -439,7 +449,7 @@ function weaponStats(w) { return w.evo ? EVOS[w.evo].stats() : WEAPONS[w.id].lv(
 function evoReady(run, w) { return !w.evo && w.level >= 5 && pLevel(run, WEAPONS[w.id].pair) > 0; }
 
 /* ---------------- XP + level-up offer ---------------- */
-function giveXP(run, v) { addXP(run, v * run.st.xpMul * (TUNING.worldXp ? TUNING.worldXp[run.world] : TUNING.xpScale)); }
+function giveXP(run, v) { addXP(run, v * run.st.xpMul * (TUNING.worldXp ? TUNING.worldXp[run.world] : TUNING.xpScale) * (TUNING.endless ? (1 + 0.9 * Math.max(0, 1 - (run.depth || 0) / 10)) * (1 + TUNING.endlessCfg.xpPerDepth * (run.depth || 0)) : 1)); }
 function addXP(run, v) {
   run.xp += v;
   while (run.xp >= run.xpNeed) { run.xp -= run.xpNeed; run.level++; run.xpNeed = xpNeed(run.level); run.pend++; }
@@ -453,10 +463,11 @@ function buildPool(run) {
   for (const w of run.weapons) if (!w.evo && w.level < 5) pool.push({ type: 'w', id: w.id, nw: false, to: w.level + 1, wt: W.owned });
   if (run.passives.length < 4) for (const id in PASSIVES) if (!ownedP[id] && !(id === 'chip' && !SAVE.ach.evo1)) pool.push({ type: 'p', id, nw: true, wt: W.fresh * boost(id) });
   for (const p of run.passives) if (p.level < 5) pool.push({ type: 'p', id: p.id, nw: false, to: p.level + 1, wt: W.owned * boost(p.id) });
+  if (TUNING.endless && pool.length < 7) for (const k in WORLD_PERKS) if (WORLD_PERKS[k].e) pool.push({ type: 'wp', id: k, nw: false, wt: 0.45 });
   return pool.filter((c) => !run.banished[c.type + c.id]);
 }
 function drawPerks(run) {
-  const ids = Object.keys(WORLD_PERKS), out = [];
+  const ids = Object.keys(WORLD_PERKS).filter((k) => !WORLD_PERKS[k].e), out = [];
   while (out.length < 3 && ids.length) out.push({ type: 'wp', id: ids.splice(Math.floor(rnd() * ids.length), 1)[0] });
   return out;
 }
@@ -487,8 +498,9 @@ function applyCard(run, c) {
   } else if (c.type === 'wp') {
     const pb = run.pb; run.perks.push(c.id);
     if (c.id === 'surgeon') pb.hp++; else if (c.id === 'barrels') pb.might += 0.12; else if (c.id === 'overclk') pb.swift += 0.10;
+    else if (c.id === 'edmg') pb.might += 0.04; else if (c.id === 'erate') pb.swift += 0.03; else if (c.id === 'earea') pb.area += 0.03; else if (c.id === 'emove') pb.move += 0.03; else if (c.id === 'ehp') pb.hp += 10 / 15;
     else if (c.id === 'optics') pb.area += 0.12; else if (c.id === 'servos') pb.move += 0.10; else if (c.id === 'rights') { pb.xp += 0.15; addCoins(run, 40, true); }
-    recalc(run); if (c.id === 'surgeon') run.player.hp = run.player.maxhp;
+    recalc(run); if (c.id === 'surgeon') run.player.hp = run.player.maxhp; if (c.id === 'ehp') run.player.hp = Math.min(run.player.maxhp, run.player.hp + 10);
   } else if (c.type === 'skip') addCoins(run, TUNING.skipCoins, true);
 }
 function addCoins(run, n, raw) {
@@ -524,7 +536,17 @@ function ringPoint(distMin, distMax, ang) {
 }
 function edgeDist() { const h = viewHalfDiag(); return [h + TUNING.spawnRingMin, h + TUNING.spawnRingMax]; }
 
+function endlessPower(run) {
+  let p = 0; for (const w of run.weapons) p += w.evo ? 8 : w.level; for (const q of run.passives) p += q.level;
+  p += run.perks.length * 1.5; let shop = 0; for (const k in SAVE.shop) shop += SAVE.shop[k] || 0; p += shop * TUNING.endlessCfg.shopW;
+  return p;
+}
+function endlessClock(run) {
+  const D = run.D;
+  return { target: Math.min(210, 25 + 8.7 * D), hp: 1 + 0.5 * D, dmg: Math.min(3.2, 1 + 0.047 * D) };
+}
 function clockAt(t) {
+  if (TUNING.endless && G.run) return endlessClock(G.run);
   if (t >= TUNING.runLengthSec) { const l = CLOCK[CLOCK.length - 1]; return { target: l[1], hp: l[2], dmg: l[3] }; }
   const i = Math.min(CLOCK.length - 2, Math.floor(t / 60)), a = CLOCK[i], c = CLOCK[i + 1], f = (t - a[0]) / 60;
   const lastSeg = i === CLOCK.length - 2; // 14:00-15:00 holds the 14:00 target, then drops at 15:00
@@ -616,8 +638,8 @@ function killEnemy(e) {
   if (e.lastSrc === 'midas' && rnd() < 0.15) addCoins(run, 1);
   if (e.lastSrc === 'swarm') { run.swarmK++; if (run.swarmK >= 20) { run.swarmK = 0; for (let i = 0; i < 5; i++) dropItem('gem', x + R(-20, 20), y + R(-20, 20), 1); } }
   for (const w of run.weapons) if (w.evo === 'sunwell' && Math.hypot(x - P.x, y - P.y) < w.s.radius * run.st.area) { run.sunK++; if (run.sunK >= 10) { run.sunK = 0; P.hp = Math.min(P.maxhp, P.hp + 1); } }
-  if (e.boss && t !== 'horror') worldClear();
-  if (t === 'horror') { run.victory = true; run.victoryT = 2.2; run.slow = 1.2; P.invuln = 99; banner('HIVE DESTROYED', 'The Matriarch is dead', 3, '#b6f23a'); SFX.win(); }
+  if (e.boss && (TUNING.endless || t !== 'horror')) worldClear();
+  if (t === 'horror' && !TUNING.endless) { run.victory = true; run.victoryT = 2.2; run.slow = 1.2; P.invuln = 99; banner('HIVE DESTROYED', 'The Matriarch is dead', 3, '#b6f23a'); SFX.win(); }
 }
 function hurtPlayer(raw, e) {
   const run = G.run, P = run.player; if (run.over || P.invuln > 0 || run.victory) return;
@@ -652,17 +674,27 @@ function startWorld(w) {
   const run = G.run; run.world = w; run.worldT = 0; run.eliteT = TUNING.eliteFirstSec; run.wSurge = false; run.wBoss = false; run.surgeWarned = false; run.spawnT = 1;
   banner('WORLD ' + (w + 1) + ' \u00b7 ' + WORLDS[w].name.toUpperCase(), WORLDS[w].sub, 3.4, WORLDS[w].col);
 }
+function startSector() {
+  const run = G.run; run.sector++; run.world = (run.sector - 1) % WORLDS.length; run.worldT = 0; run.wBoss = false; run.spawnT = 1;
+  const W = WORLDS[run.world]; run.flashFx = { col: W.col, t: 1.0, max: 1.0 }; run.slow = 0.35; shake(TUNING.shakePx);
+  banner('SECTOR ' + run.sector + ' \u00b7 ' + W.name.toUpperCase(), W.sub, 3.6, W.col); SFX.surge();
+}
 function worldClear() {
   const run = G.run; run.brk = TUNING.worldBreatherSec; run.perkPend = true; run.worldsCleared++;
-  banner('WORLD ' + (run.world + 1) + ' CLEARED', 'The swarm scatters. Grab the loot.', 3.2, '#b6f23a'); SFX.win();
+  banner(TUNING.endless ? 'SECTOR ' + run.sector + ' CLEARED' : 'WORLD ' + (run.world + 1) + ' CLEARED', TUNING.endless ? 'Grab the loot. Warping out...' : 'The swarm scatters. Grab the loot.', 3.2, '#b6f23a'); SFX.win();
   for (let i = 0; i < ENEMY_N; i++) { const e = ENEMIES_P[i]; if (e.on && !e.prop) { burst(e.x, e.y, 3, e.def.col, 120, 0.4); e.on = false; } }
   for (let i = 0; i < ITEM_N; i++) { const it = ITEM_P[i]; if (it.on && (it.kind === 'gem' || it.kind === 'coin')) it.mag = true; }
 }
 function directorStep(dt) {
   const run = G.run, P = run.player, t = run.t, T = TUNING;
   run.t += dt;
-  if (run.brk > 0) { if (!run.perkPend) { run.brk -= dt; if (run.brk <= 0) startWorld(run.world + 1); } return; }
+  if (run.brk > 0) { if (!run.perkPend) { run.brk -= dt; if (run.brk <= 0) { if (TUNING.endless) startSector(); else startWorld(run.world + 1); } } return; }
   run.worldT += dt;
+  if (TUNING.endless) {
+    const E = TUNING.endlessCfg; run.depth = Math.floor(run.t / E.depthSec + run.kills / E.depthKills);
+    run.D = E.timeW * (run.t / 60) * (1 + run.t / 1800) + E.powerW * (endlessPower(run) / E.powerDiv * 1.0) + 0.6 * (run.sector - 1);
+    if (!run.firstLap && run.sector >= 6) { run.firstLap = true; SAVE.wins[run.sid] = true; SAVE.stats.wins++; unlockAch('win'); let all = true; for (const id in SURVIVORS) if (!SAVE.wins[id]) all = false; if (all) unlockAch('winall'); banner('FIRST LAP COMPLETE', 'Sector 6 - it only gets worse', 3.5, '#b6f23a'); }
+  }
   if (TUNING.worldLevelSec) addXP(run, run.xpNeed / TUNING.worldLevelSec[run.world] * dt); // steady drip: guaranteed pace even if you can't collect gems
   const ck = clockAt(run.t); let target = ck.target;
   let alive = 0, plants = 0, broodAlive = false;
@@ -670,7 +702,7 @@ function directorStep(dt) {
   if (broodAlive) target *= 0.7;
   const [dmin, dmax] = edgeDist();
   run.spawnT -= dt;
-  if (run.spawnT <= 0 && run.t < T.runLengthSec + 600) {
+  if (run.spawnT <= 0 && (TUNING.endless || run.t < T.runLengthSec + 600)) {
     run.spawnT = T.spawnTickSec;
     const need = Math.min(T.spawnBatchMax, Math.floor(target) - alive, T.maxAliveEnemies - alive);
     const a0 = ringSpawnAngle();
@@ -682,14 +714,27 @@ function directorStep(dt) {
     }
   }
   // elites (clock restarts each world)
-  if (run.worldT >= run.eliteT && run.worldT < T.worldBossAtSec - 15) {
+  if ((TUNING.endless ? run.t : run.worldT) >= run.eliteT && (TUNING.endless || run.worldT < T.worldBossAtSec - 15)) {
     run.eliteT += T.eliteEverySec;
     const pool = []; for (const id in WORLDS[run.world].mix) if (id !== 'plant' && id !== 'skitter') pool.push(id);
     pool.push('skitter', 'skitter'); const type = pool[Math.floor(rnd() * pool.length)];
     const [x, y] = ringPoint(dmin, dmax); if (spawnEnemy(type, x, y, { elite: true })) banner('ELITE', ENEMIES[type].name + ' - drops a chest', 2, '#ffd24a');
   }
+  if (TUNING.endless) {
+    const E = TUNING.endlessCfg;
+    if (run.t >= run.surgeNext - T.surgeWarnSec && !run.surgeWarned) { run.surgeWarned = true; banner('SURGE INCOMING', 'They are coming from every side', T.surgeWarnSec, '#ff5a3a'); SFX.surge(); }
+    if (run.t >= run.surgeNext) {
+      run.surgeNext += E.surgeEvery; run.surgeWarned = false; const n = Math.min(55, Math.round(24 + 2 * run.D));
+      for (let i = 0; i < n; i++) { const [x, y] = ringPoint(dmin, dmin + 70, i / n * TAU + R(-0.05, 0.05)); spawnEnemy(rnd() < 0.7 ? 'skitter' : (WORLDS[run.world].mix.darter ? 'darter' : 'skitter'), x, y); }
+    }
+    if (!run.wBoss && run.worldT >= T.worldBossAtSec) {
+      run.wBoss = true; const bosses = ['alpha', 'husk', 'sporemother', 'brood', 'horror'], type = bosses[(run.sector - 1) % bosses.length], [x, y] = ringPoint(dmin, dmax);
+      const b = spawnEnemy(type, x, y, { hp: ENEMIES[type].hp * (1 + E.bossHpPerStep * (run.sector - 1)) });
+      if (b) { banner(ENEMIES[type].name.toUpperCase(), 'Sector ' + run.sector + ' boss', 3.2, '#ff5a3a'); SFX.boss(); shake(TUNING.shakePx); }
+    }
+  }
   // one surge per world
-  if (!run.wSurge) {
+  if (!TUNING.endless && !run.wSurge) {
     if (!run.surgeWarned && run.worldT >= T.worldSurgeAtSec - T.surgeWarnSec) { run.surgeWarned = true; banner('SURGE INCOMING', 'They are coming from every side', T.surgeWarnSec, '#ff5a3a'); SFX.surge(); }
     if (run.worldT >= T.worldSurgeAtSec) {
       run.wSurge = true; const n = T.worldSurgeBase + T.worldSurgeStep * run.world;
@@ -697,11 +742,11 @@ function directorStep(dt) {
     }
   }
   // world boss
-  if (!run.wBoss && run.worldT >= T.worldBossAtSec) {
+  if (!TUNING.endless && !run.wBoss && run.worldT >= T.worldBossAtSec) {
     run.wBoss = true; const type = WORLDS[run.world].boss, [x, y] = ringPoint(dmin, dmax);
     const b = spawnEnemy(type, x, y); if (b) { banner(ENEMIES[type].name.toUpperCase(), type === 'horror' ? 'Kill it to win' : 'World boss', 3.2, '#ff5a3a'); SFX.boss(); shake(TUNING.shakePx); }
   }
-  if (run.world === WORLDS.length - 1 && !run.warned1430 && run.worldT >= T.worldBossAtSec - 15) { run.warned1430 = true; banner('It is coming.', '', 3, '#c58aff'); }
+  if (!TUNING.endless && run.world === WORLDS.length - 1 && !run.warned1430 && run.worldT >= T.worldBossAtSec - 15) { run.warned1430 = true; banner('It is coming.', '', 3, '#c58aff'); }
   // props (floor rations / crates)
   run.propT -= dt;
   if (run.propT <= 0) {
@@ -1049,7 +1094,7 @@ function endRun(win) {
   const run = G.run; if (!run || run.ended) return; run.ended = true; run.over = true; run.win = win;
   const S = SAVE.stats;
   if (win) { addCoins(run, TUNING.victoryBonus, true); SAVE.wins[run.sid] = true; S.wins++; unlockAch('win'); let all = true; for (const id in SURVIVORS) if (!SAVE.wins[id]) all = false; if (all) unlockAch('winall'); }
-  S.runs++; S.time += run.t; S.bestTime = Math.max(S.bestTime, run.t); S.bestLevel = Math.max(S.bestLevel, run.level);
+  S.runs++; S.time += run.t; S.bestTime = Math.max(S.bestTime, run.t); S.bestLevel = Math.max(S.bestLevel, run.level); S.bestDepth = Math.max(S.bestDepth || 0, run.sector || 1); if (TUNING.endless) addCoins(run, (run.sector || 1) * TUNING.endlessCfg.depthCoins, true);
   SAVE.best[run.sid] = Math.max(SAVE.best[run.sid] || 0, run.t);
   if (run.level >= 15) unlockAch('lvl15'); if (run.t >= 600) unlockAch('surv10');
   writeSave(); droneStop(); if (!win) SFX.lose();
@@ -1310,7 +1355,7 @@ function drawHUD(run, t) {
   // xp bar
   ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(0, 0, W, 18); ctx.fillStyle = '#b6f23a'; ctx.fillRect(0, 0, W * clamp(run.xp / run.xpNeed, 0, 1), 18);
   ctx.fillStyle = '#10200a'; ctx.font = 'bold 12px system-ui,sans-serif'; ctx.textAlign = 'left'; ctx.fillText('LV ' + run.level, 8, 9);
-  ctx.textAlign = 'left'; ctx.font = 'bold 11px system-ui,sans-serif'; ctx.fillStyle = WORLDS[run.world].col; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 3; const wl = 'WORLD ' + (run.world + 1) + '/' + WORLDS.length; ctx.strokeText(wl, 8, 32); ctx.fillText(wl, 8, 32); ctx.fillText(WORLDS[run.world].name, 8, 46);
+  ctx.textAlign = 'left'; ctx.font = 'bold 11px system-ui,sans-serif'; ctx.fillStyle = WORLDS[run.world].col; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 3; const wl = TUNING.endless ? 'SECTOR ' + run.sector : 'WORLD ' + (run.world + 1) + '/' + WORLDS.length; ctx.strokeText(wl, 8, 32); ctx.fillText(wl, 8, 32); ctx.fillText(WORLDS[run.world].name, 8, 46);
   // timer + hp
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = 'bold 22px system-ui,sans-serif'; ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = 4; const tt = mmss(run.t); ctx.strokeText(tt, W / 2, 38); ctx.fillText(tt, W / 2, 38);
   const bw = Math.min(260, W * 0.5), bx = W / 2 - bw / 2;
@@ -1492,14 +1537,15 @@ function openPerk() {
 function levelView() {
   const run = G.run;
   if (run.perkMode) {
-    let h = '<h2>WORLD ' + (run.world + 1) + ' CLEARED</h2><p class="sub">Choose a perk for the rest of the run</p><div class="cards">';
+    let h = '<h2>' + (TUNING.endless ? 'SECTOR ' + run.sector + ' CLEARED' : 'WORLD ' + (run.world + 1) + ' CLEARED') + '</h2><p class="sub">Choose a perk for the rest of the run</p><div class="cards">';
     run.offer.forEach((c, i) => { h += cardView(c, i); }); h += '</div>'; showScr(h, true); return;
   }
   let h = '<h2>LEVEL UP &middot; ' + run.level + '</h2><p class="sub">' + (banishMode ? 'Tap a card to banish it from this run' : 'Pick one upgrade') + (run.pend > 1 ? ' &middot; ' + (run.pend - 1) + ' more waiting' : '') + '</p><div class="cards">';
   run.offer.forEach((c, i) => { h += cardView(c, i); });
   h += '</div><div class="row"><button class="btn sm' + (run.rerolls > 0 ? '' : ' off') + '" data-act="reroll">Reroll (' + run.rerolls + ')</button>'
     + '<button class="btn sm' + (run.banishes > 0 ? '' : ' off') + (banishMode ? ' lime' : '') + '" data-act="banish">Banish (' + run.banishes + ')</button>'
-    + '<button class="btn sm" data-act="skip">Skip +' + TUNING.skipCoins + '</button></div>';
+    + '<button class="btn sm" data-act="skip">Skip +' + TUNING.skipCoins + '</button></div>'
+    + '<div class="help"><b>Reroll</b> &ndash; draws 3 new cards. <b>Banish</b> &ndash; tap a card to remove it from this run for good (so you see the ones you want more often). <b>Skip</b> &ndash; take credits instead of an upgrade.</div>';
   showScr(h, true);
 }
 function finishPick() {
@@ -1516,12 +1562,12 @@ function chooseCard(i) {
 
 function showEnd() {
   const run = G.run; setScene('end'); const win = run.win, S = SURVIVORS[run.sid];
-  let h = '<p class="big ' + (win ? 'win' : 'lose') + '">' + (win ? 'VICTORY' : 'YOU FELL') + '</p>'
-    + '<p class="sub">' + (win ? 'The Matriarch is dead. +' + TUNING.victoryBonus + ' bonus credits.' : 'Credits are kept. The next run starts in a second.') + '</p>'
-    + '<table class="st"><tr><td>Survivor</td><td>' + S.name + '</td></tr><tr><td>Time survived</td><td>' + mmss(run.t) + '</td></tr><tr><td>World reached</td><td>' + (run.world + 1) + ' of ' + WORLDS.length + ' &middot; ' + WORLDS[run.world].name + '</td></tr><tr><td>Level</td><td>' + run.level + '</td></tr><tr><td>Kills</td><td>' + run.kills + '</td></tr>'
+  let h = '<p class="big ' + (win ? 'win' : 'lose') + '">' + 'YOU FELL' + '</p>'
+    + '<p class="sub">' + ('Sector ' + run.sector + ' reached. +' + run.sector * TUNING.endlessCfg.depthCoins + ' sector credits.') + '</p>'
+    + '<table class="st"><tr><td>Survivor</td><td>' + S.name + '</td></tr><tr><td>Time survived</td><td>' + mmss(run.t) + '</td></tr><tr><td>Sector reached</td><td>' + run.sector + ' &middot; best ' + SAVE.stats.bestDepth + '</td></tr><tr><td>Level</td><td>' + run.level + '</td></tr><tr><td>Kills</td><td>' + run.kills + '</td></tr>'
     + '<tr><td>Credits earned</td><td>' + run.coins + '</td></tr><tr><td>Evolutions</td><td>' + run.evos + '</td></tr><tr><td>Damage dealt</td><td>' + Math.round(run.dmgDealt).toLocaleString() + '</td></tr></table><div class="build">';
   for (const w of run.weapons) h += icon(itemInfo(w.evo || w.id), false); h += '</div><div class="build">'; for (const p of run.passives) h += icon(itemInfo(p.id), false);
-  h += '</div><button class="btn pri" data-act="again" id="againBtn">Run Again</button>' + (win ? '<button class="btn off" disabled>Endless Mode - locked (coming soon)</button>' : '') + '<button class="btn" data-act="menu">Menu</button>';
+  h += '</div><button class="btn pri" data-act="again" id="againBtn">Run Again</button>' + '' + '<button class="btn" data-act="menu">Menu</button>';
   showScr(h, false); const b2 = $('againBtn'); if (b2) setTimeout(() => { try { b2.focus(); } catch (e) {} }, 50);
 }
 

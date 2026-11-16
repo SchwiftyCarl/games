@@ -1,6 +1,6 @@
 /* Service worker for Hivefall: caches the game so it works offline.
    Bump CACHE_VERSION whenever you change index.html so players get the update. */
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE = 'hivefall-' + CACHE_VERSION;
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
 
