@@ -1605,8 +1605,9 @@ function icon(info, sm) { return '<span class="ic' + (sm ? ' s' : '') + '" style
 function showScr(html, dim) { scr.className = 'scr show' + (dim ? ' dim' : ''); scr.innerHTML = '<div class="panel">' + html + '</div>'; scr.scrollTop = 0; }
 function hideScr() { scr.className = 'scr'; scr.innerHTML = ''; }
 function refreshCoins() { coinbar.textContent = 'CREDITS ' + SAVE.coins; }
+function joyReset() { const j = G.joy; if (j) { j.on = false; j.dx = 0; j.dy = 0; j.id = null; } }
 function setScene(s) {
-  G.scene = s; const inMenu = s === 'menu' || s === 'select' || s === 'shop' || s === 'stats' || s === 'settings';
+  G.scene = s; if (s !== 'play') joyReset(); const inMenu = s === 'menu' || s === 'select' || s === 'shop' || s === 'stats' || s === 'settings';
   coinbar.style.display = inMenu ? 'block' : 'none'; pauseBtn.style.display = s === 'play' ? 'block' : 'none'; lockBtn.style.display = (s === 'play' && TUNING.aimMode !== 'auto') ? 'block' : 'none'; if (s !== 'play') { G.lockHeld = false; lockBtn.classList.remove('on'); }
   if (inMenu) refreshCoins();
 }
@@ -1829,14 +1830,14 @@ window.addEventListener('keydown', (e) => {
   else if (G.scene === 'pause' && (k === 'escape' || k === 'p')) { if (scr.querySelector('[data-act="backpause"]')) pauseView(); else resumeGame(); }
 });
 window.addEventListener('keyup', (e) => { G.keys[e.key.toLowerCase()] = false; });
-window.addEventListener('blur', () => { G.keys = {}; if (G.scene === 'play') pauseGame(); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) { G.keys = {}; if (G.scene === 'play') pauseGame(); writeSave(); } });
+window.addEventListener('blur', () => { G.keys = {}; joyReset(); if (G.scene === 'play') pauseGame(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { G.keys = {}; joyReset(); if (G.scene === 'play') pauseGame(); writeSave(); } });
 window.addEventListener('pagehide', writeSave);
 window.addEventListener('resize', resize);
 cv.addEventListener('contextmenu', (e) => e.preventDefault());
 function joyBase() { const m = SAVE.settings.joyMode; if (m !== 'left' && m !== 'right') return null; return { x: m === 'left' ? 85 : G.W - 85, y: G.H - 115 }; } // fixed stick: bottom corner, never moves
 cv.addEventListener('pointerdown', (e) => {
-  auInit(); if (G.scene !== 'play' || G.joy.on) return;
+  auInit(); if (G.scene !== 'play') return; if (G.joy.on && G.joy.id === e.pointerId) return; // a new touch takes over a stale stick
   const j = G.joy, fb = joyBase();
   if (fb) { if (Math.hypot(e.clientX - fb.x, e.clientY - fb.y) > 120) return; j.sx = fb.x; j.sy = fb.y; j.fixed = true; }
   else { if (e.pointerType === 'touch') { if (G.H > G.W * 1.1 ? e.clientY < G.H * 0.45 : e.clientX > G.W * 0.7) return; } // portrait: thumb zone is the lower half, so a finger never covers the hero
@@ -1850,7 +1851,8 @@ function joyMove(e) {
   const dd = Math.hypot(dx, dy); if (dd < 6) { j.dx = 0; j.dy = 0; } else { j.dx = dx / m; j.dy = dy / m; const l = Math.hypot(j.dx, j.dy); if (l > 1) { j.dx /= l; j.dy /= l; } }
 }
 cv.addEventListener('pointermove', joyMove);
-const joyEnd = (e) => { const j = G.joy; if (j.on && e.pointerId === j.id) { j.on = false; j.dx = 0; j.dy = 0; } };
+const joyEnd = (e) => { const j = G.joy; if (j.on && e.pointerId === j.id) joyReset(); };
+window.addEventListener('pointerup', joyEnd); window.addEventListener('pointercancel', joyEnd); cv.addEventListener('lostpointercapture', joyEnd);
 cv.addEventListener('pointerup', joyEnd); cv.addEventListener('pointercancel', joyEnd);
 ['gesturestart', 'gesturechange'].forEach((n) => document.addEventListener(n, (e) => e.preventDefault()));
 document.addEventListener('touchmove', (e) => { if (e.target === cv) e.preventDefault(); }, { passive: false });
