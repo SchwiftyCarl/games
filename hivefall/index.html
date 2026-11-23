@@ -45,6 +45,7 @@ h2{margin:0 0 10px;font-size:26px;color:#ff8a2b;letter-spacing:.04em}
 .ctag{font-size:12px;font-weight:800;padding:2px 7px;border-radius:6px;background:#b6f23a;color:#142004;margin-left:6px}
 .ctag.lv{background:#ff8a2b;color:#1a0d04}
 .cdesc{font-size:14px;color:#d9c8ac;line-height:1.35}
+.badges{display:inline-flex;gap:5px;vertical-align:middle}.bdg{width:14px;height:14px;border-radius:50%;border:2px solid #4a5568;display:inline-block;box-sizing:border-box}.bdg.on{box-shadow:0 0 6px currentColor}
 .cpair{font-size:12px;color:#b6f23a;margin-top:4px}
 .keyhint{font-size:11px;color:#8d7d66;float:right}
 table.st{width:100%;border-collapse:collapse;margin:8px 0;text-align:left}
@@ -109,7 +110,7 @@ const TUNING = {
   victoryBonus: 250,
   skipCoins: 15,                           // TWEAK: spec 10
   feastHeal: 30, purseCoins: 25,
-  weight: { owned: 1.2, fresh: 1.0, pair: 1.6 },
+  weight: { owned: 1.2, fresh: 1.0, pair: 1.6, modNeed: 2.2 },
   propEverySec: 20, propHp: 12, propHeal: 30,
   magnetOrbChance: 0.05, bombRelicChance: 0.05, chickenChance: 0.25, bombDamage: 60, bossBombFrac: 0.25,
   chestCoins: [30, 50], chestHeal: 20,
@@ -200,12 +201,6 @@ const WORLD_PERKS = {
   earea:   { name:'Wide Burst',     ab:'WB', col:'#8ae0ff', desc:'+3% area',            e:true },
   emove:   { name:'Light Boots',    ab:'LB', col:'#5affd0', desc:'+3% move speed',      e:true },
   ehp:     { name:'Reinforce',      ab:'RF', col:'#ff7a9a', desc:'+10 Max HP, heal 10', e:true },
-  surgeon: { name:'Field Surgeon',  ab:'FS', col:'#ff7a9a', desc:'Heal to full, +15 Max HP' },
-  barrels: { name:'Hot Barrels',    ab:'HB', col:'#ff5a7a', desc:'+12% damage' },
-  overclk: { name:'Overclock',      ab:'OV', col:'#ffd84a', desc:'+10% attack speed' },
-  optics:  { name:'Wide Optics',    ab:'WO', col:'#8ae0ff', desc:'+12% area' },
-  servos:  { name:'Servo Boost',    ab:'SB', col:'#5affd0', desc:'+10% move speed' },
-  rights:  { name:'Salvage Rights', ab:'SR', col:'#ffd24a', desc:'+15% XP, +40 credits' },
 };
 
 const SURVIVORS = {
@@ -218,35 +213,35 @@ const SURVIVORS = {
 /* ---------- weapons: lv(l) returns stats at level l ---------- */
 const b = (c) => c ? 1 : 0;
 const WEAPONS = {
-  pulse: { name:'Pulse Rifle', ab:'PR', col:'#6ad0ff', pair:'cycler', evo:'railcannon',
+  pulse: { name:'Pulse Rifle', ab:'PR', col:'#6ad0ff', evo:'railcannon',
     blurb:'Rapid fire at the nearest bug.',
     gain:{2:'+3 damage, faster fire',3:'+3 damage, faster, +1 bolt',4:'+3 damage, faster, bolts pierce',5:'+3 damage, faster, +1 bolt'},
     lv:l=>({ dmg:10+3*(l-1), cd:0.5-0.05*(l-1), n:1+b(l>=3)+b(l>=5), speed:560, pierce:b(l>=4), spread:0.13, assist:0.44 }) },
-  orbit: { name:'Orbit Drones', ab:'OD', col:'#ff9a3a', pair:'magnet', evo:'cyclone',
+  orbit: { name:'Orbit Drones', ab:'OD', col:'#ff9a3a', evo:'cyclone',
     blurb:'Drones circle you and shred anything they touch.',
     gain:{2:'+4 damage, +1 drone, faster spin',3:'+4 damage, faster spin',4:'+4 damage, +1 drone, faster spin',5:'+4 damage, faster spin, wider orbit'},
     lv:l=>({ dmg:12+4*(l-1), n:2+b(l>=2)+b(l>=4), radius:l>=5?115:95, hitCd:0.35-0.02*(l-1), spin:2.4+0.4*(l-1) }) },
-  seeker: { name:'Smart Missiles', ab:'SM', col:'#e86bff', pair:'chip', evo:'swarm',
+  seeker: { name:'Smart Missiles', ab:'SM', col:'#e86bff', evo:'swarm',
     blurb:'Homing missiles fan out at nearby bugs.',
     gain:{2:'+2 damage, +1 missile, faster reload',3:'+2 damage, faster reload',4:'+2 damage, +1 missile, faster reload',5:'+2 damage, +1 missile, faster reload'},
     lv:l=>({ dmg:8+2*(l-1), cd:1.0-0.08*(l-1), n:2+b(l>=2)+b(l>=4)+b(l>=5), fan:0.34, range:420, turn:240, speed:330 }) },
-  aura: { name:'Shield Pulse', ab:'SP', col:'#7affb0', pair:'plating', evo:'sunwell',
+  aura: { name:'Shield Pulse', ab:'SP', col:'#7affb0', evo:'sunwell',
     blurb:'A damage field around you. Hurts whatever gets close.',
     gain:{2:'+2 damage, +12 radius, faster ticks',3:'+2 damage, +12 radius, faster ticks',4:'+2 damage, +12 radius, faster ticks',5:'+2 damage, +12 radius, faster ticks'},
     lv:l=>({ dmg:6+2*(l-1), radius:80+12*(l-1), tick:0.5-0.04*(l-1) }) },
-  arc: { name:'Tesla Coil', ab:'TC', col:'#ffe94a', pair:'overcharge', evo:'tempest',
+  arc: { name:'Tesla Coil', ab:'TC', col:'#ffe94a', evo:'tempest',
     blurb:'Lightning strikes a bug and chains onward.',
     gain:{2:'+4 damage, faster, longer reach',3:'+4 damage, +1 chain, faster, longer reach',4:'+4 damage, faster, longer reach',5:'+4 damage, +1 chain, faster, longer reach'},
     lv:l=>({ dmg:14+4*(l-1), cd:1.2-0.1*(l-1), chains:2+b(l>=3)+b(l>=5), range:380+25*(l-1), chainR:130, cone:(100+20*(l-1))*Math.PI/180 }) },
-  nova: { name:'Cryo Burst', ab:'CB', col:'#9ae8ff', pair:'implant', evo:'zero',
+  nova: { name:'Cryo Burst', ab:'CB', col:'#9ae8ff', evo:'zero',
     blurb:'Radial burst that damages and slows everything nearby.',
     gain:{2:'+3 damage, +15 radius, faster',3:'+3 damage, +15 radius, faster',4:'+3 damage, +15 radius, stronger slow, faster',5:'+3 damage, +15 radius, faster'},
     lv:l=>({ dmg:9+3*(l-1), cd:2.4-0.25*(l-1), radius:130+15*(l-1), slow:l>=4?0.55:0.4, slowT:1.5, freeze:0 }) },
-  axes: { name:'Rebound Frags', ab:'RF', col:'#ff6a5a', pair:'jets', evo:'juggernaut',
+  axes: { name:'Rebound Frags', ab:'RF', col:'#ff6a5a', evo:'juggernaut',
     blurb:'Hurls frags the way you are moving. They pierce, then return.',
     gain:{2:'+5 damage, faster',3:'+5 damage, +1 frag, faster',4:'+5 damage, faster',5:'+5 damage, +1 frag, faster'},
     lv:l=>({ dmg:16+5*(l-1), cd:1.5-0.1*(l-1), n:1+b(l>=3)+b(l>=5), dist:300, speed:380, size:1 }) },
-  starfall: { name:'Orbital Strike', ab:'OS', col:'#ffb43a', pair:'optics', evo:'midas',
+  starfall: { name:'Orbital Strike', ab:'OS', col:'#ffb43a', evo:'midas',
     blurb:'Strikes rain down on bugs. Warning ring, then boom.',
     gain:{2:'+7 damage, +1 strike, bigger blast',3:'+7 damage, bigger blast, faster',4:'+7 damage, +1 strike, bigger blast',5:'+7 damage, +1 strike, bigger blast'},
     lv:l=>({ dmg:24+7*(l-1), cd:1.8-0.12*(l-1), n:1+b(l>=2)+b(l>=4)+b(l>=5), range:460, warn:0.6, blast:80+10*(l-1) }) },
@@ -270,30 +265,90 @@ const EVOS = {
     stats:()=>({ dmg:55, cd:1.2, n:5, range:480, warn:0.6, blast:120, midas:true }) },
 };
 
-// Ascension: a second evolution, earned with a core from a tier boss. Each form needs one held passive; with none held you get the plain upgrade.
+// ---------- MODS: weapon-shaping upgrades. They work on every weapon at half strength, and at full strength on a weapon attuned to them. ----------
+const MOD_MAX = 8, WEAPON_MAX = 8, EVO_MIN_SECTOR = 3, EVO_MOD_LEVEL = 3, ATTUNE_GLOBAL = 0.5;
+const SLOTS = { total: 6, weapons: 4, mods: 4 };
+const MODS = {
+  shock:    { name:'Overcharge Cells',  ab:'OC', col:'#ffe94a', adj:'Storm',   stat:{ might:0.07 } },
+  surge:    { name:'Rapid Cycler',      ab:'RC', col:'#ffd84a', adj:'Rapid',   stat:{ swift:0.05 } },
+  volatile: { name:'Blast Optics',      ab:'BO', col:'#ff9a3a', adj:'Blast',   stat:{ area:0.07 } },
+  chill:    { name:'Cryo Coolant',      ab:'CC', col:'#8ae0ff', adj:'Frost',   stat:{ swift:0.025, area:0.025 } },
+  burn:     { name:'Incendiary Rounds', ab:'IR', col:'#ff6a3a', adj:'Inferno', stat:{ might:0.05 } },
+  kinetic:  { name:'Kinetic Rounds',    ab:'KR', col:'#c0c8d8', adj:'Impact',  stat:{ might:0.03, area:0.03 } },
+};
+const PASSIVES = MODS; // older code paths look items up here
+const MOD_FX = {
+  shock:    { chance: (l) => 0.08 + 0.03 * (l - 1), arcs: (l) => 1 + (l >= 4 ? 1 : 0) + (l >= 8 ? 1 : 0), dmg: 0.5, range: 150 },
+  surge:    { every: (l) => Math.max(3, 9 - l), dmg: 0.6 },
+  volatile: { chance: (l) => 0.14 + 0.04 * (l - 1), radius: (l) => 38 + 7 * (l - 1), dmg: (l) => 0.25 + 0.04 * (l - 1) },
+  chill:    { slow: (l) => Math.min(0.6, 0.15 + 0.05 * l), time: 1.4, freeze: (l) => l >= 6 ? 0.1 + 0.03 * (l - 6) : 0 },
+  burn:     { ratio: (l) => 0.6 + 0.12 * (l - 1), time: 3, stacks: 5 },
+  kinetic:  { kb: (l) => 5 + 2.5 * l, stun: (l) => l >= 6 ? 0.12 + 0.03 * (l - 6) : 0 },
+};
+function pct(x) { return Math.round(x * 100); }
+function modText(id, l) {
+  const f = MOD_FX[id];
+  if (id === 'shock') return 'Shock: ' + pct(f.chance(l)) + '% of hits arc to ' + f.arcs(l) + ' nearby bug' + (f.arcs(l) > 1 ? 's' : '') + '.';
+  if (id === 'surge') return 'Surge: every ' + f.every(l) + 'th hit deals +' + pct(f.dmg) + '% damage.';
+  if (id === 'volatile') return 'Volatile: ' + pct(f.chance(l)) + '% of hits blast ' + f.radius(l) + ' px for ' + pct(f.dmg(l)) + '% damage.';
+  if (id === 'chill') return 'Chill: hits slow bugs ' + pct(f.slow(l)) + '%' + (f.freeze(l) ? ', ' + pct(f.freeze(l)) + '% to freeze' : '') + '.';
+  if (id === 'burn') return 'Burn: hits ignite bugs, dealing ' + pct(f.ratio(l)) + '% of the hit as damage over ' + f.time + 's. Stacks up to ' + f.stacks + 'x.';
+  return 'Kinetic: hits knock bugs back ' + Math.round(f.kb(l)) + ' px' + (f.stun(l) ? ', ' + pct(f.stun(l)) + '% to stagger' : '') + '.';
+}
+function modStatText(id) { const s = MODS[id].stat, o = []; if (s.might) o.push('+' + pct(s.might) + '% damage'); if (s.swift) o.push('+' + (Math.round(s.swift * 1000) / 10) + '% attack speed'); if (s.area) o.push('+' + (Math.round(s.area * 1000) / 10) + '% area'); return o.join(', '); }
+// authored combos: both mods must be held
+const MOD_COMBOS = [
+  { a:'chill',   b:'volatile', name:'Shatter',     desc:'Blasts deal +60% to chilled bugs.' },
+  { a:'burn',    b:'volatile', name:'Firestorm',   desc:'Blasts ignite everything they hit.' },
+  { a:'shock',   b:'chill',    name:'Conduction',  desc:'Arcs deal +50% to chilled bugs.' },
+  { a:'kinetic', b:'burn',     name:'Embers',      desc:'Knocking back a burning bug spreads the fire.' },
+  { a:'surge',   b:'shock',    name:'Overcurrent', desc:'Empowered hits always arc.' },
+];
+// hits from these sources count as coming from this weapon (for mod attunement)
+const SRC_W = { bolt:'pulse', dart:'seeker', swarm:'seeker', arc:'arc', zone:'arc', orbit:'orbit', aura:'aura', axe:'axes', nova:'nova', meteor:'starfall', midas:'starfall' };
+
+// Ascension: a second evolution, earned with a core from a tier boss. Each form needs a held mod (other than the one the weapon is attuned to); with none you get the plain upgrade.
 const ASCEND = {
   railcannon: { forms:[
-    { id:'lance',   name:'Lance Cannon',   need:'optics',     desc:'2 huge bolts that pierce everything. 60 dmg.', stats:{ dmg:60, cd:0.34, n:2, pierce:99, speed:780, spread:0.04, big:1.8 } },
-    { id:'barrage', name:'Gauss Barrage',  need:'overcharge', desc:'A wall of 8 bolts. 30 dmg each, wide spread.',  stats:{ dmg:30, cd:0.3,  n:8, pierce:2,  spread:0.3 } } ] },
-  zero: { forms:[
-    { id:'deep',    name:'Deep Freeze',    need:'optics',     desc:'Massive 340 px blast. Freezes solid for 1.6 s.', stats:{ dmg:34, cd:2.0, radius:340, freeze:1.6 } },
-    { id:'storm',   name:'Cryo Storm',     need:'cycler',     desc:'Rapid pulses every 0.7 s. Keeps everything chilled.', stats:{ dmg:30, cd:0.7, radius:215, freeze:0.5 } } ] },
+    { id:'lance',   name:'Lance Cannon',    need:'kinetic',  desc:'2 huge bolts that pierce everything. 60 dmg.',    stats:{ dmg:60, cd:0.34, n:2, pierce:99, speed:780, spread:0.04, big:1.8 } },
+    { id:'barrage', name:'Gauss Barrage',   need:'surge',    desc:'A wall of 8 bolts, 30 dmg each.',                  stats:{ dmg:30, cd:0.3, n:8, pierce:2, spread:0.3 } } ] },
   cyclone: { forms:[
-    { id:'reaper',  name:'Reaper Ring',    need:'overcharge', desc:'5 heavy drones, 64 dmg, hit again quickly.', stats:{ dmg:64, n:5, hitCd:0.2, radius:125 } },
-    { id:'bulwark', name:'Bulwark Ring',   need:'plating',    desc:'10 drones on a wide ring. Slows and grinds.', stats:{ dmg:30, n:10, radius:150, slow:0.4 } } ] },
+    { id:'reaper',  name:'Reaper Ring',     need:'shock',    desc:'5 heavy drones, 64 dmg, hit again quickly.',       stats:{ dmg:64, n:5, hitCd:0.2, radius:125 } },
+    { id:'bulwark', name:'Bulwark Ring',    need:'kinetic',  desc:'10 drones on a wide ring. Slows and grinds.',      stats:{ dmg:30, n:10, radius:150, slow:0.4 } } ] },
+  swarm: { forms:[
+    { id:'hive',    name:'Hive Swarm',      need:'surge',    desc:'12 small missiles, rapid reloads.',                stats:{ dmg:13, cd:0.6, n:12 } },
+    { id:'warhead', name:'Warhead Swarm',   need:'volatile', desc:'5 heavy missiles, 34 dmg each.',                   stats:{ dmg:34, cd:0.8, n:5 } } ] },
+  sunwell: { forms:[
+    { id:'novawell',name:'Nova Well',       need:'burn',     desc:'Bigger field, 20 dmg, faster ticks.',              stats:{ dmg:20, radius:175, tick:0.3 } },
+    { id:'aegis',   name:'Aegis Well',      need:'chill',    desc:'Huge 210 px field. Heals on kills.',               stats:{ dmg:14, radius:210, tick:0.35 } } ] },
+  tempest: { forms:[
+    { id:'front',   name:'Stormfront',      need:'chill',    desc:'10 chains and very long reach.',                   stats:{ dmg:26, chains:10, range:470 } },
+    { id:'overload',name:'Overload Coil',   need:'burn',     desc:'5 chains, 48 dmg, faster.',                        stats:{ dmg:48, cd:0.6, chains:5 } } ] },
+  zero: { forms:[
+    { id:'deep',    name:'Deep Freeze',     need:'volatile', desc:'Massive 340 px blast. Freezes solid for 1.6 s.',   stats:{ dmg:34, cd:2.0, radius:340, freeze:1.6 } },
+    { id:'storm',   name:'Cryo Storm',      need:'surge',    desc:'Rapid pulses every 0.7 s. Keeps things chilled.',  stats:{ dmg:30, cd:0.7, radius:215, freeze:0.5 } } ] },
+  juggernaut: { forms:[
+    { id:'wrecker', name:'Wrecker Frags',   need:'kinetic',  desc:'2 enormous frags, 60 dmg.',                        stats:{ dmg:60, n:2, size:2.6 } },
+    { id:'cluster', name:'Cluster Frags',   need:'volatile', desc:'5 frags, 30 dmg each.',                            stats:{ dmg:30, n:5 } } ] },
+  midas: { forms:[
+    { id:'salvo',   name:'Orbital Salvo',   need:'surge',    desc:'8 fast strikes, 40 dmg.',                          stats:{ dmg:40, cd:1.0, n:8 } },
+    { id:'hammer',  name:'Orbital Hammer',  need:'shock',    desc:'3 colossal strikes, 90 dmg, huge blast.',          stats:{ dmg:90, n:3, blast:150 } } ] },
 };
 const ASCEND_DEFAULT = { dmg:1.4, cd:0.85, n:1, radius:1.1 };
 const ASCEND_EVERY = 5; // a tier boss every N sectors drops one core
 
-const PASSIVES = {
-  overcharge:{ name:'Overcharge Cells', ab:'OC', col:'#ff5a7a', pair:'arc',    desc:'+8% all damage' },
-  jets:      { name:'Jump Jets',        ab:'JJ', col:'#5affd0', pair:'axes',    desc:'+6% move speed' },
-  magnet:    { name:'Salvage Magnet',   ab:'SM', col:'#7a9aff', pair:'orbit',   desc:'+25% pickup radius' },
-  implant:   { name:'Medkit Implant',   ab:'MI', col:'#ff7a9a', pair:'nova',     desc:'+20 Max HP, heal 20' },
-  cycler:    { name:'Rapid Cycler',     ab:'RC', col:'#ffd84a', pair:'pulse',      desc:'+6% attack speed' },
-  optics:    { name:'Blast Optics',     ab:'BO', col:'#8ae0ff', pair:'starfall',     desc:'+8% area' },
-  plating:   { name:'Ceramic Plating',  ab:'CP', col:'#c0c8d8', pair:'aura',     desc:'+1 Armor, +0.15 HP/s regen' },
-  chip:      { name:'Requisition Chip', ab:'RQ', col:'#ffd24a', pair:'seeker', desc:'+10% XP, +10% credits' },
+// ---------- PERKS: survival and economy, picked at sector clears. Hold up to PERK_CAP, ranks to PERK_MAX. ----------
+const PERK_CAP = 3, PERK_MAX = 5;
+const PERKS = {
+  medkit:     { name:'Medkit Implant',   ab:'MI', col:'#ff7a9a', text:(r)=>'+' + 20 * r + ' Max HP. Kills heal ' + (0.15 * r).toFixed(2) + ' HP.' },
+  magnet:     { name:'Salvage Magnet',   ab:'SM', col:'#7a9aff', text:(r)=>'+' + 25 * r + '% pickup radius, +' + 4 * r + '% XP.' },
+  plating:    { name:'Ceramic Plating',  ab:'CP', col:'#c0c8d8', text:(r)=>'+' + r + ' armor, +' + (0.15 * r).toFixed(2) + ' HP/s. Hits trigger a shockwave every ' + Math.max(3, 10 - 1.5 * r).toFixed(1) + 's.' },
+  jets:       { name:'Jump Jets',        ab:'JJ', col:'#5affd0', text:(r)=>'+' + 6 * r + '% move speed.' },
+  chip:       { name:'Requisition Chip', ab:'RQ', col:'#ffd24a', text:(r)=>'+' + 10 * r + '% XP and credits. Each sector one elite is a bounty: bonus loot.' },
+  secondwind: { name:'Second Wind',      ab:'SW', col:'#9affc8', text:(r)=>'Revive once at ' + (30 + 10 * r) + '% HP' + (r >= 5 ? ' (twice)' : '') + ', clearing nearby bugs.' },
+  quartermaster:{ name:'Quartermaster',  ab:'QM', col:'#ffb86a', text:(r)=>'+1 reroll' + (r % 2 ? ' and +1 banish' : '') + ' each rank.' },
+  adrenaline: { name:'Adrenaline',       ab:'AD', col:'#ff5a5a', text:(r)=>'Below 40% HP: +' + 8 * r + '% move speed, +' + 6 * r + '% attack speed.' },
+  surgeon:    { name:'Field Surgeon',    ab:'FS', col:'#ff9ab0', text:(r)=>'Heal ' + 15 * r + '% Max HP at the start of each sector.' },
 };
 
 const SHOP = [
@@ -309,13 +364,15 @@ const SHOP = [
   { id:'banish',   name:'Banish Charm',desc:'+1 banish per run (you start with 1)', costs:[400,800] },
 ];
 
+const TIER_REWARD = [150, 300, 500, 800, 1500]; // first clear of each tier, per survivor. Repeat clears pay a quarter.
 const ACHIEVEMENTS = [
   { id:'lvl15',  name:'Reach level 15 in one run',      reward:'Unlocks survivor: Flamer' },
   { id:'gems',   name:'Collect 1,500 cores (lifetime)', reward:'Unlocks survivor: Scout' },
   { id:'surv10', name:'Survive 10:00 in one run',       reward:'Unlocks survivor: Heavy' },
-  { id:'evo1',   name:'Achieve your first evolution',   reward:'Requisition Chip joins the pool' },
+  { id:'evo1',   name:'Achieve your first evolution',   reward:'Bragging rights' },
   { id:'kills',  name:'Kill 10,000 enemies (lifetime)', reward:'Cosmetic: gold player trail' },
   { id:'win',    name:'Win a run (kill the Matriarch)', reward:'Cosmetic: arena theme "Dawn"' },
+  { id:'hive',   name:'Destroy the Hive (clear Extinction)', reward:'Title: Exterminator' },
   { id:'winall', name:'Win with each survivor',         reward:'Cosmetic: crown on character select' },
 ];
 /* ---------------- utils ---------------- */
@@ -331,7 +388,7 @@ const xpNeed = (L) => Math.round(TUNING.xpCurve.base + (L - 1) * TUNING.xpCurve.
 /* ---------------- save (localStorage, migration-safe) ---------------- */
 const SAVE_KEY = 'hivefallSave.v1';
 function defaultSave() {
-  return { v: 1, coins: 0, shop: {}, unlocked: { warden: true }, ach: {}, wins: {}, best: {}, sel: 'warden', seenEvo: false,
+  return { v: 1, coins: 0, shop: {}, unlocked: { warden: true }, ach: {}, wins: {}, tiers: {}, best: {}, sel: 'warden', seenEvo: false,
     settings: { vol: 0.6, mute: false, shake: true, dmgNums: true, theme: 'dusk', autoRetreat: false, lockToggle: false, lockSide: 'right', joyMode: 'float' },
     stats: { runs: 0, wins: 0, time: 0, kills: 0, gems: 0, coins: 0, evos: 0, bestTime: 0, bestLevel: 0, bestDepth: 0 } };
 }
@@ -434,6 +491,7 @@ let enemyCursor = 0;
 function itemInfo(id) {
   if (WEAPONS[id]) return { kind: 'w', ...WEAPONS[id], id };
   if (PASSIVES[id]) return { kind: 'p', ...PASSIVES[id], id };
+  if (PERKS[id]) return { kind: 'k', ...PERKS[id], id };
   if (EVOS[id]) return { kind: 'e', ...EVOS[id], ab: WEAPONS[EVOS[id].base].ab, id };
   return { name: id, ab: '??', col: '#888', id };
 }
@@ -446,7 +504,7 @@ function newRun(sid) {
     sid, t: 0, over: false, level: 1, xp: 0, xpNeed: xpNeed(1), pend: 0, kills: 0, coins: 0, gems: 0, evos: 0, dmgDealt: 0,
     weapons: [], passives: [], offer: null, rerolls: TUNING.baseRerolls + (SAVE.shop.reroll || 0), banishes: 1 + (SAVE.shop.banish || 0), banished: {},
     player: { x: 0, y: 0, aim: 0, muzzle: 0, r: TUNING.player.radius, hp: 100, maxhp: 100, fx: 1, fy: 0, invuln: 0, flash: 0, regenAcc: 0, vx: 0, vy: 0 },
-    st: null, spawnT: 0, eliteT: TUNING.eliteFirstSec, surgeIdx: 0, surgeWarned: false, bossSpawned: {}, bossT: 0, world: 0, worldT: 0, brk: 0, wSurge: false, wBoss: false, perkPend: false, cores: 0, ascMode: false, ascends: 0, perkMode: false, pb: { might: 0, swift: 0, area: 0, move: 0, xp: 0, hp: 0 }, worldsCleared: 0, perks: [], depth: 0, sector: 1, D: 0, adapt: 0, nextBossDepth: TUNING.endlessCfg.bossEvery, bossN: 0, surgeNext: TUNING.endlessCfg.surgeEvery, firstLap: false, propT: 8,
+    st: null, spawnT: 0, eliteT: TUNING.eliteFirstSec, surgeIdx: 0, surgeWarned: false, bossSpawned: {}, bossT: 0, world: 0, worldT: 0, brk: 0, wSurge: false, wBoss: false, perkPend: false, pk: {}, mcd: {}, swUsed: 0, platCd: 0, attPend: null, attMode: false, adrOn: false, modBusy: false, siphonT: 0, siphonN: 0, cores: 0, ascMode: false, ascends: 0, perkMode: false, pb: { might: 0, swift: 0, area: 0, move: 0, xp: 0, hp: 0 }, worldsCleared: 0, perks: [], depth: 0, sector: 1, D: 0, adapt: 0, nextBossDepth: TUNING.endlessCfg.bossEvery, bossN: 0, surgeNext: TUNING.endlessCfg.surgeEvery, firstLap: false, propT: 8,
     shake: 0, banner: null, flashFx: null, slow: 0, chain: 0, lastGemT: -9, trail: [], jug: [], sunK: 0, swarmK: 0,
     chests: 0, magnetFlash: 0, victory: false, victoryT: 0, ended: false, nextBlink: 0,
   };
@@ -461,21 +519,25 @@ function newRun(sid) {
 function shopRank(id) { return SAVE.shop[id] || 0; }
 function pLevel(run, id) { for (const p of run.passives) if (p.id === id) return p.level; return 0; }
 
+function modStat(run, key) { let s = 0; for (const p of run.passives) { const v = MODS[p.id].stat[key]; if (v) s += v * p.level; } return s; }
+function perkRank(run, id) { return (run.pk && run.pk[id]) || 0; }
 function recalc(run) {
   const S = SURVIVORS[run.sid];
-  const pl = (id) => pLevel(run, id);
+  const pk = (id) => perkRank(run, id);
   const st = run.st || (run.st = {});
   const pb = run.pb || { might: 0, swift: 0, area: 0, move: 0, xp: 0, hp: 0 };
-  st.might = 1 + 0.04 * shopRank('might') + 0.08 * pl('overcharge') + (run.sid === 'pyre' ? 0.10 : 0) + pb.might;
-  st.swift = 1 + 0.06 * pl('cycler') + pb.swift;
-  st.area = 1 + 0.08 * pl('optics') + pb.area;
-  st.move = 1 + 0.03 * shopRank('swiftness') + 0.06 * pl('jets') + (run.sid === 'swift' ? 0.12 : 0) - (run.sid === 'bulwark' ? 0.06 : 0) + pb.move;
-  st.pickup = 1 + 0.12 * shopRank('magnetism') + 0.25 * pl('magnet') + (run.sid === 'swift' ? 0.15 : 0);
-  st.maxhp = TUNING.player.hp + 10 * shopRank('vitality') + 20 * pl('implant') + (run.sid === 'warden' ? 10 : 0) - (run.sid === 'pyre' ? 10 : 0) + 15 * pb.hp;
-  st.armor = shopRank('plating') + pl('plating') + (run.sid === 'bulwark' ? 2 : 0);
-  st.regen = 0.2 * shopRank('recovery') + 0.15 * pl('plating') + (run.sid === 'bulwark' ? 0.4 : 0);
-  st.xpMul = 1 + 0.05 * shopRank('wisdom') + 0.10 * pl('chip') + pb.xp;
-  st.coinMul = 1 + 0.06 * shopRank('greed') + 0.10 * pl('chip');
+  const adr = pk('adrenaline') > 0 && run.player && run.player.hp < run.player.maxhp * 0.4; run.adrOn = !!adr;
+  st.might = 1 + 0.04 * shopRank('might') + modStat(run, 'might') + (run.sid === 'pyre' ? 0.10 : 0) + pb.might;
+  st.swift = 1 + modStat(run, 'swift') + pb.swift + (adr ? 0.06 * pk('adrenaline') : 0);
+  st.area = 1 + modStat(run, 'area') + pb.area;
+  st.move = 1 + 0.03 * shopRank('swiftness') + 0.06 * pk('jets') + (run.sid === 'swift' ? 0.12 : 0) - (run.sid === 'bulwark' ? 0.06 : 0) + pb.move + (adr ? 0.08 * pk('adrenaline') : 0);
+  st.pickup = 1 + 0.12 * shopRank('magnetism') + 0.25 * pk('magnet') + (run.sid === 'swift' ? 0.15 : 0);
+  st.maxhp = TUNING.player.hp + 10 * shopRank('vitality') + 20 * pk('medkit') + (run.sid === 'warden' ? 10 : 0) - (run.sid === 'pyre' ? 10 : 0) + 15 * pb.hp;
+  st.armor = shopRank('plating') + pk('plating') + (run.sid === 'bulwark' ? 2 : 0);
+  st.regen = 0.2 * shopRank('recovery') + 0.15 * pk('plating') + (run.sid === 'bulwark' ? 0.4 : 0);
+  st.xpMul = 1 + 0.05 * shopRank('wisdom') + 0.04 * pk('magnet') + 0.10 * pk('chip') + pb.xp;
+  st.coinMul = 1 + 0.06 * shopRank('greed') + 0.10 * pk('chip');
+  st.siphon = 0.15 * pk('medkit');
   if (run.player) { const d = st.maxhp - run.player.maxhp; run.player.maxhp = st.maxhp; if (d > 0) run.player.hp += d; run.player.hp = Math.min(run.player.hp, run.player.maxhp); }
 }
 
@@ -484,9 +546,16 @@ function addWeapon(run, id) {
   w.s = WEAPONS[id].lv(1); run.weapons.push(w); return w;
 }
 function ascForms(evo) { return (ASCEND[evo] && ASCEND[evo].forms) || []; }
-function ascName(w) { const f = ascForms(w.evo).find((x) => x.id === w.asc); return f ? f.name : EVOS[w.evo].name + ' II'; }
+function ascName(w) { const f = ascForms(w.evo).find((x) => x.id === w.asc); return f ? f.name : evoName(w) + ' II'; }
+function lvStats(id, l) {
+  if (l <= 5) return WEAPONS[id].lv(l);
+  const s = WEAPONS[id].lv(5), k = l - 5;
+  s.dmg *= 1 + 0.12 * k; if (s.cd) s.cd *= Math.pow(0.95, k); if (s.tick) s.tick *= Math.pow(0.95, k); if (s.radius) s.radius *= 1 + 0.04 * k; if (s.hitCd) s.hitCd *= Math.pow(0.96, k);
+  if (l >= WEAPON_MAX) { if (s.n) s.n += 1; if (s.chains) s.chains += 1; }
+  return s;
+}
 function weaponStats(w) {
-  if (!w.evo) return WEAPONS[w.id].lv(w.level);
+  if (!w.evo) return lvStats(w.id, w.level);
   const base = EVOS[w.evo].stats(); if (!w.asc) return base;
   const f = ascForms(w.evo).find((x) => x.id === w.asc); if (f) return Object.assign(base, f.stats);
   base.dmg *= ASCEND_DEFAULT.dmg; if (base.cd) base.cd *= ASCEND_DEFAULT.cd; if (base.n) base.n += ASCEND_DEFAULT.n; if (base.radius) base.radius *= ASCEND_DEFAULT.radius;
@@ -496,7 +565,7 @@ function ascendables(run) { return run.weapons.filter((w) => w.evo && !w.asc); }
 function ascCards(run) {
   const out = [];
   for (const w of ascendables(run)) {
-    const forms = ascForms(w.evo), ok = forms.filter((f) => pLevel(run, f.need) > 0);
+    const forms = ascForms(w.evo), ok = forms.filter((f) => pLevel(run, f.need) > 0 && f.need !== w.att);
     if (ok.length) for (const f of ok) out.push({ type: 'asc', id: w.id, form: f.id });
     else out.push({ type: 'asc', id: w.id, form: 'plain' });
   }
@@ -505,11 +574,14 @@ function ascCards(run) {
 }
 function ascendWeapon(run, wid, form) {
   const w = run.weapons.find((x) => x.id === wid); if (!w || !w.evo || w.asc) return;
-  w.asc = form === 'plain' ? 'plain' : form; w.s = weaponStats(w); w.cd = 0.05; run.cores--; run.ascends = (run.ascends || 0) + 1;
+  w.asc = form === 'plain' ? 'plain' : form; { const fm = ascForms(w.evo).find((x) => x.id === w.asc); if (fm) w.att2 = fm.need; else { const bm = run.passives.filter((p) => p.id !== w.att).sort((a, b) => b.level - a.level)[0]; if (bm) w.att2 = bm.id; } } w.s = weaponStats(w); w.cd = 0.05; run.cores--; run.ascends = (run.ascends || 0) + 1;
   run.flashFx = { col: EVOS[w.evo].col, t: 0.8, max: 0.8 }; run.slow = 0.5; shake(TUNING.shakePx); SFX.evo();
   banner('ASCENDED: ' + ascName(w).toUpperCase(), (ascForms(w.evo).find((x) => x.id === w.asc) || { desc: 'Stronger and faster.' }).desc, 3.6, EVOS[w.evo].col);
 }
-function evoReady(run, w) { return !w.evo && w.level >= 5 && pLevel(run, WEAPONS[w.id].pair) > 0; }
+function evoMods(run) { return run.passives.filter((p) => p.level >= EVO_MOD_LEVEL); }
+function evoReady(run, w) { return !w.evo && w.level >= WEAPON_MAX && evoMods(run).length > 0; }
+function evoName(w) { return (w.att ? MODS[w.att].adj + ' ' : '') + EVOS[w.evo].name; }
+function modF(w, id) { return (w.att === id || w.att2 === id) ? 1 : ATTUNE_GLOBAL; }
 
 /* ---------------- XP + level-up offer ---------------- */
 function giveXP(run, v) { addXP(run, v * run.st.xpMul * (TUNING.worldXp ? TUNING.worldXp[run.world] : TUNING.xpScale) * (TUNING.endless ? (1 + 0.9 * Math.max(0, 1 - (run.depth || 0) / 10)) * (1 + TUNING.endlessCfg.xpPerDepth * (run.depth || 0)) : 1)); }
@@ -521,17 +593,24 @@ function buildPool(run) {
   const pool = [], W = TUNING.weight;
   const ownedW = {}, ownedP = {};
   for (const w of run.weapons) ownedW[w.id] = w; for (const p of run.passives) ownedP[p.id] = p;
-  const boost = (pid) => { const wid = PASSIVES[pid].pair, w = ownedW[wid]; return w && !w.evo && w.level >= 4 ? W.pair : 1; };
-  if (run.weapons.length < 4) for (const id in WEAPONS) if (!ownedW[id]) pool.push({ type: 'w', id, nw: true, wt: W.fresh });
-  for (const w of run.weapons) if (!w.evo && w.level < 5) pool.push({ type: 'w', id: w.id, nw: false, to: w.level + 1, wt: W.owned });
-  if (run.passives.length < 4) for (const id in PASSIVES) if (!ownedP[id] && !(id === 'chip' && !SAVE.ach.evo1)) pool.push({ type: 'p', id, nw: true, wt: W.fresh * boost(id) });
-  for (const p of run.passives) if (p.level < 5) pool.push({ type: 'p', id: p.id, nw: false, to: p.level + 1, wt: W.owned * boost(p.id) });
+  const nW = run.weapons.length, nM = run.passives.length, free = SLOTS.total - nW - nM;
+  // a maxed weapon with no mod at the evolution level pulls mod cards forward
+  const needMod = run.weapons.some((w) => !w.evo && w.level >= WEAPON_MAX - 1) && evoMods(run).length === 0;
+  if (nW < SLOTS.weapons && free > 0) for (const id in WEAPONS) if (!ownedW[id]) pool.push({ type: 'w', id, nw: true, wt: W.fresh });
+  for (const w of run.weapons) if (!w.evo && w.level < WEAPON_MAX) pool.push({ type: 'w', id: w.id, nw: false, to: w.level + 1, wt: W.owned * 1.5 });
+  if (nM < SLOTS.mods && free > 0) for (const id in MODS) if (!ownedP[id]) pool.push({ type: 'p', id, nw: true, wt: W.fresh * (needMod ? W.modNeed : 1) });
+  for (const p of run.passives) if (p.level < MOD_MAX) pool.push({ type: 'p', id: p.id, nw: false, to: p.level + 1, wt: W.owned * (needMod || p.level < EVO_MOD_LEVEL ? W.modNeed * 0.7 : 1) });
   if (TUNING.endless && pool.length < 7) for (const k in WORLD_PERKS) if (WORLD_PERKS[k].e) pool.push({ type: 'wp', id: k, nw: false, wt: 0.45 });
-  return pool.filter((c) => !run.banished[c.type + c.id]);
+  return pool;
 }
 function drawPerks(run) {
-  const ids = Object.keys(WORLD_PERKS).filter((k) => !WORLD_PERKS[k].e), out = [];
-  while (out.length < 3 && ids.length) out.push({ type: 'wp', id: ids.splice(Math.floor(rnd() * ids.length), 1)[0] });
+  const held = Object.keys(run.pk).filter((k) => run.pk[k] > 0), cand = [];
+  for (const k of held) if (run.pk[k] < PERK_MAX) cand.push({ type: 'pk', id: k, nw: false, to: run.pk[k] + 1 });
+  if (held.length < PERK_CAP) for (const k in PERKS) if (!run.pk[k]) cand.push({ type: 'pk', id: k, nw: true, to: 1 });
+  const out = [];
+  while (out.length < 3 && cand.length) out.push(cand.splice(Math.floor(rnd() * cand.length), 1)[0]);
+  const es = Object.keys(WORLD_PERKS).filter((k) => WORLD_PERKS[k].e);
+  while (out.length < 3 && es.length) out.push({ type: 'wp', id: es.splice(Math.floor(rnd() * es.length), 1)[0] });
   return out;
 }
 function drawOffer(run) {
@@ -564,6 +643,11 @@ function applyCard(run, c) {
     else if (c.id === 'edmg') pb.might += 0.04; else if (c.id === 'erate') pb.swift += 0.03; else if (c.id === 'earea') pb.area += 0.03; else if (c.id === 'emove') pb.move += 0.03; else if (c.id === 'ehp') pb.hp += 10 / 15;
     else if (c.id === 'optics') pb.area += 0.12; else if (c.id === 'servos') pb.move += 0.10; else if (c.id === 'rights') { pb.xp += 0.15; addCoins(run, 40, true); }
     recalc(run); if (c.id === 'surgeon') run.player.hp = run.player.maxhp; if (c.id === 'ehp') run.player.hp = Math.min(run.player.maxhp, run.player.hp + 10);
+  } else if (c.type === 'pk') {
+    run.pk[c.id] = c.to; recalc(run);
+    if (c.id === 'quartermaster') { run.rerolls++; if (c.to % 2) run.banishes++; }
+    if (c.id === 'surgeon') run.player.hp = Math.min(run.player.maxhp, run.player.hp + run.player.maxhp * 0.15);
+    if (c.id === 'medkit') run.player.hp = Math.min(run.player.maxhp, run.player.hp + 20);
   } else if (c.type === 'asc') ascendWeapon(run, c.id, c.form);
   else if (c.type === 'skip') addCoins(run, TUNING.skipCoins, true);
 }
@@ -625,7 +709,7 @@ function spawnEnemy(type, x, y, o) {
   e.max = e.hp = (o.hp !== undefined ? o.hp : def.hp * hpm * (e.elite ? TUNING.eliteHpMult : 1));
   e.sp = def.sp * (e.elite ? TUNING.eliteSpeedMult : 1) * (ck.spd || 1); e.dmg = def.dmg * ck.dmg * (e.elite ? TUNING.eliteDmgMult : 1);
   e.r = def.r * (e.elite ? TUNING.eliteScale : 1); e.mass = def.mass * (e.elite ? 2 : 1); e.xp = def.xp;
-  e.hitT = 0; e.slowT = 0; e.slowAmt = 0; e.freezeT = 0; e.obT = 0; e.ph = rnd() * TAU; e.st = 0; e.stT = 0; e.flash = 0; e.t = 0; e.bt = type === 'brood' ? 3 : (type === 'latcher' || type === 'leech') ? 0.5 : 5; e.enraged = false; e.ang = 0; e.dx = 1; e.dy = 0; e.lastSrc = '';
+  e.hitT = 0; e.slowT = 0; e.slowAmt = 0; e.freezeT = 0; e.burnT = 0; e.burnDps = 0; e.burnAcc = 0; e.chillT = 0; e.spT = 0; e.bounty = false; e.obT = 0; e.ph = rnd() * TAU; e.st = 0; e.stT = 0; e.flash = 0; e.t = 0; e.bt = type === 'brood' ? 3 : (type === 'latcher' || type === 'leech') ? 0.5 : 5; e.enraged = false; e.ang = 0; e.dx = 1; e.dy = 0; e.lastSrc = '';
   e.kindProp = o.kindProp || ''; e.invul = false; e.tx = 0; e.ty = 0; e.trait = ''; e.dr = 0;
   if (e.elite && TUNING.endless && tierOf(G.run.sector) >= 1) { const ks = Object.keys(ELITE_TRAITS); e.trait = ks[Math.floor(rnd() * ks.length)]; if (e.trait === 'armored') e.dr = 0.35; else if (e.trait === 'frenzied') e.sp *= 1.3; }
   if (type === 'bomber') e.dmg = 22 * ck.dmg;
@@ -661,8 +745,62 @@ function hitEnemy(e, d, nx, ny, kb, src) {
   if (e.dr) d *= 1 - e.dr;
   e.hp -= d; run.dmgDealt += d; e.flash = 0.08; e.lastSrc = src || '';
   if (kb) { const k = e.big ? TUNING.bigKnockbackFrac : 1; e.x += nx * kb * k; e.y += ny * kb * k; }
-  addNum(e.x, e.y - e.r, d, e.elite || e.boss ? '#ffd24a' : '#fff', e.elite || e.boss);
-  if (e.hp <= 0) killEnemy(e);
+  if (src !== 'mod' || e.elite || e.boss) addNum(e.x, e.y - e.r, d, src === 'burn' ? '#ff8a3a' : src === 'mod' ? '#ffb070' : e.elite || e.boss ? '#ffd24a' : '#fff', e.elite || e.boss);
+  if (src !== 'mod' && !run.modBusy && run.passives.length && SRC_W[src]) modHit(e, d, src);
+  if (e.hp <= 0 && e.on) killEnemy(e);
+}
+function ignite(e, inc) { if (!e.on || e.prop) return; e.burnT = MOD_FX.burn.time; e.burnDps = Math.min(e.burnDps + inc, Math.max(e.burnDps, inc * MOD_FX.burn.stacks)); }
+function nearestOther(x, y, range, skip) {
+  let best = null, bd = range * range;
+  for (let i = 0; i < ENEMY_N; i++) { const t = ENEMIES_P[i]; if (!t.on || t.invul || t === skip || (skip && skip.arcd && skip.arcd.includes(t))) continue; const dx = t.x - x, dy = t.y - y, dd = dx * dx + dy * dy; if (dd < bd) { bd = dd; best = t; } }
+  return best;
+}
+// Every weapon hit runs through here. Mods work at half strength everywhere and full strength on the weapon they are attuned to.
+function modHit(e, d, src) {
+  const run = G.run, wid = SRC_W[src], w = run.weapons.find((x) => x.id === wid); if (!w) return;
+  run.modBusy = true;
+  const has = (id) => pLevel(run, id), P = run.player;
+  let force = false;
+  const sg = has('surge');
+  if (sg) { const need = Math.max(1, Math.round(MOD_FX.surge.every(sg) / modF(w, 'surge'))); w.sgN = (w.sgN || 0) + 1; if (w.sgN >= need) { w.sgN = 0; force = true; if (e.on) hitEnemy(e, d * MOD_FX.surge.dmg, 0, 0, 0, 'mod'); addFx('ring', e.x, e.y, 26, 0.18, '#ffd84a'); } }
+  const sh = has('shock');
+  if (sh && (run.t >= (run.mcd.shock || 0)) && (force && has('surge') && has('shock') ? true : rnd() < MOD_FX.shock.chance(sh) * modF(w, 'shock'))) {
+    run.mcd.shock = run.t + 0.05;
+    let from = e; const arcs = MOD_FX.shock.arcs(sh); e.arcd = [];
+    for (let a = 0; a < arcs; a++) {
+      const t = nearestOther(from.x, from.y, MOD_FX.shock.range, e); if (!t) break;
+      e.arcd.push(t); addFx('bolt', from.x, from.y, 0, 0.14, '#ffe94a', t.x, t.y);
+      hitEnemy(t, d * MOD_FX.shock.dmg * (has('chill') && t.chillT > 0 ? 1.5 : 1), 0, 0, 0, 'mod'); from = t;
+    }
+    e.arcd = null;
+  }
+  const vo = has('volatile');
+  if (vo && run.t >= (run.mcd.volatile || 0) && rnd() < MOD_FX.volatile.chance(vo) * modF(w, 'volatile')) {
+    run.mcd.volatile = run.t + 0.06;
+    const r = MOD_FX.volatile.radius(vo) * run.st.area, fr = MOD_FX.volatile.dmg(vo) * (0.6 + 0.4 * modF(w, 'volatile')), x = e.x, y = e.y;
+    addFx('ring', x, y, r, 0.25, '#ff9a3a');
+    for (let i = 0; i < ENEMY_N; i++) {
+      const t = ENEMIES_P[i]; if (!t.on || t.invul || t === e) continue; const dx = t.x - x, dy = t.y - y; if (dx * dx + dy * dy > (r + t.r) * (r + t.r)) continue;
+      hitEnemy(t, d * fr * (has('chill') && t.chillT > 0 ? 1.6 : 1), 0, 0, 0, 'mod');
+      if (has('burn')) ignite(t, d * fr * MOD_FX.burn.ratio(has('burn')) / MOD_FX.burn.time);
+    }
+  }
+  if (e.on) {
+    const ch = has('chill');
+    if (ch && !e.prop) {
+      const f = modF(w, 'chill'); e.chillT = MOD_FX.chill.time; e.slowT = Math.max(e.slowT, MOD_FX.chill.time); e.slowAmt = Math.max(e.slowAmt, MOD_FX.chill.slow(ch) * (f === 1 ? 1 : 0.6));
+      const fz = MOD_FX.chill.freeze(ch) * f; if (fz && !e.boss && rnd() < fz) e.freezeT = 0.6;
+    }
+    const bu = has('burn'); if (bu) ignite(e, d * MOD_FX.burn.ratio(bu) * modF(w, 'burn') / MOD_FX.burn.time);
+    const ki = has('kinetic');
+    if (ki && !e.prop) {
+      const f = modF(w, 'kinetic'), dx = e.x - P.x, dy = e.y - P.y, dd = Math.hypot(dx, dy) || 1, k = MOD_FX.kinetic.kb(ki) * f * (e.big ? TUNING.bigKnockbackFrac : 1);
+      e.x += dx / dd * k; e.y += dy / dd * k;
+      const st = MOD_FX.kinetic.stun(ki) * f; if (st && !e.boss && rnd() < st) { e.slowT = Math.max(e.slowT, 0.35); e.slowAmt = Math.max(e.slowAmt, 0.9); }
+      if (bu && e.burnT > 0 && run.t >= e.spT) { e.spT = run.t + 0.5; for (let i = 0; i < ENEMY_N; i++) { const t = ENEMIES_P[i]; if (t.on && t !== e && Math.abs(t.x - e.x) < 80 && Math.abs(t.y - e.y) < 80) ignite(t, e.burnDps * 0.4); } }
+    }
+  }
+  run.modBusy = false;
 }
 function explode(x, y, dmg) {
   const run = G.run, P = run.player, R2 = 70;
@@ -695,6 +833,8 @@ function killEnemy(e) {
   burst(x, y, e.boss ? 40 : e.elite ? 16 : 5, e.def.col, e.boss ? 320 : 130, e.boss ? 1 : 0.45, e.boss ? 4 : 2.5);
   SFX.pop();
   const t = e.type;
+  if (run.st.siphon > 0 && run.t >= run.siphonT) { run.siphonN += run.st.siphon; if (run.siphonN >= 1) { const hp = Math.floor(run.siphonN); run.siphonN -= hp; P.hp = Math.min(P.maxhp, P.hp + hp); run.siphonT = run.t + 0.5; } }
+  if (e.bounty) { const r = perkRank(run, 'chip') || 1; dropCoins(x, y, 8 + 5 * r); dropXP(x + 14, y, 30 * r); banner('BOUNTY CLAIMED', '+' + (8 + 5 * r) + ' credits and bonus cores', 2.2, '#ffd24a'); }
   if (e.elite) { dropItem('chest', x, y, 0); dropXP(x, y, 30); dropCoins(x, y, Math.round(R(15, 25))); }
   else if (e.boss) {
     dropItem('chest', x + 30, y, 0); dropXP(x, y, 75);
@@ -723,7 +863,21 @@ function hurtPlayer(raw, e) {
   P.hp -= dmg; P.invuln = TUNING.player.contactInvulnSec; P.flash = 0.2;
   addNum(P.x, P.y - 20, dmg, '#ff5a3a', false); SFX.hurt(); shake(TUNING.shakePx);
   if (e) { e.hitT = TUNING.enemyHitCooldownSec; const dx = e.x - P.x, dy = e.y - P.y, d = Math.hypot(dx, dy) || 1; e.x += dx / d * TUNING.enemyPushbackPx; e.y += dy / d * TUNING.enemyPushbackPx; }
-  if (P.hp <= 0) { P.hp = 0; endRun(false); }
+  if (P.hp <= 0) {
+    const sw = perkRank(run, 'secondwind');
+    if (sw && run.swUsed < (sw >= 5 ? 2 : 1)) {
+      run.swUsed++; P.hp = P.maxhp * (0.3 + 0.1 * sw); P.invuln = 3; P.flash = 1;
+      for (let i = 0; i < ENEMY_N; i++) { const t = ENEMIES_P[i]; if (t.on && !t.prop && !t.boss && Math.hypot(t.x - P.x, t.y - P.y) < 420) { burst(t.x, t.y, 3, t.def.col, 120, 0.4); t.on = false; } }
+      addFx('ring', P.x, P.y, 420, 0.5, '#9affc8'); banner('SECOND WIND', 'Back on your feet', 2.4, '#9affc8'); SFX.win(); recalc(run); return;
+    }
+    P.hp = 0; endRun(false); return;
+  }
+  const pl = perkRank(run, 'plating');
+  if (pl && run.t >= run.platCd) {
+    run.platCd = run.t + Math.max(3, 10 - 1.5 * pl); addFx('ring', P.x, P.y, 140, 0.3, '#c0c8d8');
+    for (let i = 0; i < ENEMY_N; i++) { const t = ENEMIES_P[i]; if (!t.on || t.prop || t.invul) continue; const dx = t.x - P.x, dy = t.y - P.y, dd = Math.hypot(dx, dy) || 1; if (dd < 140 + t.r) { t.x += dx / dd * 60; t.y += dy / dd * 60; hitEnemy(t, 8 + 4 * pl, 0, 0, 0, 'mod'); } }
+  }
+  if (perkRank(run, 'adrenaline') && (P.hp < P.maxhp * 0.4) !== run.adrOn) recalc(run);
 }
 function armorBonus(run) { let n = 0; for (let i = 0; i < run.jug.length; i++) if (run.jug[i] > 0) n++; return n; }
 
@@ -761,16 +915,27 @@ function startWorld(w) {
 }
 function lapName(run) { return WORLDS[run.world].name; }
 function startSector() {
-  const run = G.run; run.sector++; run.world = (run.sector - 1) % WORLDS.length; run.worldT = 0; run.wBoss = false; run.spawnT = 1;
+  const run = G.run; run.sector++; { const sg = perkRank(run, 'surgeon'); if (sg) run.player.hp = Math.min(run.player.maxhp, run.player.hp + run.player.maxhp * 0.15 * sg); } run.world = (run.sector - 1) % WORLDS.length; run.worldT = 0; run.wBoss = false; run.spawnT = 1;
   const W = WORLDS[run.world]; run.flashFx = { col: W.col, t: 1.0, max: 1.0 }; run.slow = 0.35; shake(TUNING.shakePx);
   const tr = tierOf(run.sector);
   if ((run.sector - 1) % 5 === 0) { { const nbn = NEW_BUGS.find((nb) => nb.sector === run.sector); banner('TIER: ' + tierName(tr).toUpperCase(), TIERS[Math.min(tr, TIERS.length - 1)].blurb + (nbn ? '  NEW: ' + nbn.note : ''), 4.6, '#ff5a3a'); } }
   else banner('SECTOR ' + run.sector + ' \u00b7 ' + lapName(run).toUpperCase(), (NEW_BUGS.find((nb) => nb.sector === run.sector) ? 'NEW: ' + NEW_BUGS.find((nb) => nb.sector === run.sector).note : W.sub), 3.6, W.col); SFX.surge();
 }
+function tierClear(run) {
+  const t = tierOf(run.sector), had = (SAVE.tiers[run.sid] || 0) > t, base = TIER_REWARD[Math.min(t, TIER_REWARD.length - 1)];
+  const pay = had ? Math.round(base * 0.25) : base; SAVE.tiers[run.sid] = Math.max(SAVE.tiers[run.sid] || 0, t + 1);
+  (run.clearedTiers = run.clearedTiers || []).push(t); addCoins(run, pay, true);
+  if (t === 0 && !run.firstLap) { run.firstLap = true; SAVE.wins[run.sid] = true; SAVE.stats.wins++; unlockAch('win'); let all = true; for (const id in SURVIVORS) if (!SAVE.wins[id]) all = false; if (all) unlockAch('winall'); }
+  const col = ['#b6f23a', '#ffd24a', '#ff9a3a', '#ff5a8a', '#ff3a3a'][Math.min(t, 4)];
+  if (t === 4 && !SAVE.ach.hive) { unlockAch('hive'); run.victoryPend = true; }
+  else banner('TIER CLEARED \u00b7 ' + tierName(t).toUpperCase(), '+' + pay + ' credits' + (had ? ' (repeat)' : ' \u00b7 badge earned'), 1.8, col);
+  saveDirty = true;
+}
 function worldClear() {
   const run = G.run; run.brk = TUNING.worldBreatherSec; run.perkPend = true; run.worldsCleared++;
   if (TUNING.endless && run.sector % ASCEND_EVERY === 0) { run.cores++; setTimeout(() => { if (G.run === run && !run.over) banner('ASCENSION CORE', ascendables(run).length ? 'Upgrade an evolved weapon' : 'Held until you evolve a weapon', 3.4, '#ffd24a'); }, 1900); }
   banner(TUNING.endless ? 'SECTOR ' + run.sector + ' CLEARED' : 'WORLD ' + (run.world + 1) + ' CLEARED', TUNING.endless ? 'Grab the loot. Warping out...' : 'The swarm scatters. Grab the loot.', 3.2, '#b6f23a'); SFX.win();
+  if (TUNING.endless && run.sector % 5 === 0) tierClear(run);
   for (let i = 0; i < ENEMY_N; i++) { const e = ENEMIES_P[i]; if (e.on && !e.prop) { burst(e.x, e.y, 3, e.def.col, 120, 0.4); e.on = false; } }
   for (let i = 0; i < ITEM_N; i++) { const it = ITEM_P[i]; if (it.on && (it.kind === 'gem' || it.kind === 'coin')) it.mag = true; }
 }
@@ -782,7 +947,6 @@ function directorStep(dt) {
   if (TUNING.endless) {
     const E = TUNING.endlessCfg; run.depth = Math.floor(run.t / E.depthSec + run.kills / E.depthKills);
     run.D = 2.4 * ((run.sector - 1) + Math.min(1.2, run.worldT / 150)); // difficulty = how far you have climbed, never how strong you are
-    if (!run.firstLap && run.sector >= 6) { run.firstLap = true; SAVE.wins[run.sid] = true; SAVE.stats.wins++; unlockAch('win'); let all = true; for (const id in SURVIVORS) if (!SAVE.wins[id]) all = false; if (all) unlockAch('winall'); banner('FIRST LAP COMPLETE', 'Sector 6 - it only gets worse', 3.5, '#b6f23a'); }
   }
   if (TUNING.worldLevelSec) addXP(run, run.xpNeed / TUNING.worldLevelSec[run.world] * dt); // steady drip: guaranteed pace even if you can't collect gems
   const ck = clockAt(run.t); let target = ck.target;
@@ -807,7 +971,7 @@ function directorStep(dt) {
     run.eliteT += T.eliteEverySec;
     const pool = []; for (const id in activeMix(run.world)) if (id !== 'plant' && id !== 'skitter') pool.push(id);
     pool.push('skitter', 'skitter'); const type = pool[Math.floor(rnd() * pool.length)];
-    const [x, y] = ringPoint(dmin, dmax); { const el = spawnEnemy(type, x, y, { elite: true }); if (el) banner(el.trait ? ELITE_TRAITS[el.trait].name.toUpperCase() + ' ELITE' : 'ELITE', ENEMIES[type].name + (el.trait ? ' - ' + ELITE_TRAITS[el.trait].desc : ' - drops a chest'), 2.2, el.trait ? ELITE_TRAITS[el.trait].col : '#ffd24a'); }
+    const [x, y] = ringPoint(dmin, dmax); { const el = spawnEnemy(type, x, y, { elite: true }); if (el && perkRank(run, 'chip') > 0 && run.bountyS !== run.sector) { el.bounty = true; run.bountyS = run.sector; } if (el) banner(el.trait ? ELITE_TRAITS[el.trait].name.toUpperCase() + ' ELITE' : 'ELITE', ENEMIES[type].name + (el.trait ? ' - ' + ELITE_TRAITS[el.trait].desc : ' - drops a chest'), 2.2, el.trait ? ELITE_TRAITS[el.trait].col : '#ffd24a'); }
   }
   if (TUNING.endless) {
     const E = TUNING.endlessCfg;
@@ -872,7 +1036,8 @@ function updateEnemies(dt) {
   for (let q = 0; q < ENEMY_N; q++) { const sc = ENEMIES_P[q]; if (sc.on && sc.type === 'screamer') _scr.push(sc); }
   for (let i = 0; i < ENEMY_N; i++) {
     const e = ENEMIES_P[i]; if (!e.on) continue;
-    e.t += dt; if (e.hitT > 0) e.hitT -= dt; if (e.obT > 0) e.obT -= dt; if (e.flash > 0) e.flash -= dt;
+    e.t += dt; if (e.hitT > 0) e.hitT -= dt; if (e.obT > 0) e.obT -= dt; if (e.flash > 0) e.flash -= dt; if (e.chillT > 0) e.chillT -= dt;
+    if (e.burnT > 0) { e.burnT -= dt; e.burnAcc += dt; if (e.burnAcc >= 0.5) { e.burnAcc = 0; hitEnemy(e, e.burnDps * 0.5, 0, 0, 0, 'burn'); if (!e.on) continue; } } else e.burnDps = 0;
     if (e.prop) { if (Math.hypot(e.x - P.x, e.y - P.y) > 1100) e.on = false; continue; }
     let dx = P.x - e.x, dy = P.y - e.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
     if (d > T.catchUpDistance) { const [x, y] = ringPoint(dmin, dmax, ringSpawnAngle()); e.x = x; e.y = y; continue; }
@@ -927,16 +1092,21 @@ function updateEnemies(dt) {
 function openChest() {
   const run = G.run; SFX.chest(); run.chests++;
   const w = run.weapons.find((x) => evoReady(run, x));
-  if (w && TUNING.chestEvolutionFirst) { evolve(w); return; }
+  if (w && run.sector >= EVO_MIN_SECTOR) {
+    const ms = evoMods(run);
+    if (ms.length === 1) { evolve(w, ms[0].id); return; }
+    run.attPend = w; return;
+  }
   const c = Math.max(1, Math.round(R(TUNING.chestCoins[0], TUNING.chestCoins[1]) * TUNING.coinScale)); addCoins(run, c, false);
   run.player.hp = Math.min(run.player.maxhp, run.player.hp + TUNING.chestHeal);
-  banner('SUPPLY CHEST', '+' + c + ' credits and a medkit (+' + TUNING.chestHeal + ' HP)', 3, '#ffd24a');
+  banner('SUPPLY CHEST', w ? 'Evolutions unlock in sector ' + EVO_MIN_SECTOR + '. +' + c + ' credits' : '+' + c + ' credits and a medkit (+' + TUNING.chestHeal + ' HP)', 3, '#ffd24a');
 }
-function evolve(w) {
+function evolve(w, att) {
   const run = G.run, eid = WEAPONS[w.id].evo, E = EVOS[eid];
-  w.evo = eid; w.s = weaponStats(w); w.cd = 0.05; run.evos++; SAVE.stats.evos++; saveDirty = true;
+  if (!att) { const m = evoMods(run).sort((a, b) => b.level - a.level)[0]; att = m && m.id; }
+  w.att = att || null; w.evo = eid; w.s = weaponStats(w); w.cd = 0.05; run.evos++; SAVE.stats.evos++; saveDirty = true;
   run.flashFx = { col: E.col, t: 0.7, max: 0.7 }; run.slow = 0.5; shake(TUNING.shakePx);
-  banner('EVOLUTION: ' + E.name.toUpperCase(), E.desc, 3.4, E.col); SFX.evo();
+  banner('EVOLUTION: ' + evoName(w).toUpperCase(), E.desc + (w.att ? ' ' + MODS[w.att].name + ' attuned.' : ''), 3.6, E.col); SFX.evo();
   if (!SAVE.ach.evo1) unlockAch('evo1');
 }
 function updateItems(dt) {
@@ -1161,6 +1331,7 @@ function updateFx(dt) {
 function stepSim(dt) {
   const run = G.run; if (!run || run.over) return;
   const P = run.player;
+  if (run.pk.adrenaline && (P.hp < P.maxhp * 0.4) !== run.adrOn) recalc(run);
   // movement
   let mx = 0, my = 0; const k = G.keys;
   if (k.a || k.arrowleft) mx -= 1; if (k.d || k.arrowright) mx += 1; if (k.w || k.arrowup) my -= 1; if (k.s || k.arrowdown) my += 1;
@@ -1443,6 +1614,10 @@ function drawEnemy(e, t) {
     bugEyes(r * 0.5, 0, r * 0.22, 1.5, '#ffffff'); if (e.st === 1) glowDot(0, 0, r * 1.4, '#8f6ad8', 0.3);
   } else { ctx.fillStyle = C(base); ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.fill(); }
   ctx.restore();
+  if (e.freezeT > 0) { ctx.fillStyle = 'rgba(170,230,255,.45)'; ctx.beginPath(); ctx.arc(e.x, e.y + fly, r * 1.05, 0, TAU); ctx.fill(); }
+  else if (e.chillT > 0) { ctx.strokeStyle = 'rgba(138,224,255,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(e.x, e.y + fly, r * 1.08, 0, TAU); ctx.stroke(); }
+  if (e.burnT > 0) { ctx.fillStyle = 'rgba(255,120,40,.85)'; const fl = Math.sin(t * 18 + e.ph) * 2; ctx.beginPath(); ctx.arc(e.x - r * 0.3, e.y + fly - r * 0.9 + fl, 3.5, 0, TAU); ctx.arc(e.x + r * 0.3, e.y + fly - r * 0.8 - fl, 3, 0, TAU); ctx.fill(); }
+  if (e.bounty) { ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(e.x, e.y + fly, r * 1.4, 0, TAU); ctx.stroke(); ctx.fillStyle = '#ffd24a'; ctx.font = 'bold 10px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.fillText('BOUNTY', e.x, e.y - r * 1.65); }
   if (e.elite && e.trait) { const tc = ELITE_TRAITS[e.trait].col; ctx.strokeStyle = tc; ctx.lineWidth = 4; ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(e.x, e.y + fly, r * 1.22, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; ctx.fillStyle = tc; ctx.font = 'bold 10px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.fillText(ELITE_TRAITS[e.trait].name.toUpperCase(), e.x, e.y - r * 1.4); }
   if (e.elite) { ctx.strokeStyle = '#ffd24a'; ctx.lineWidth = 3; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.arc(e.x, e.y + fly, r * 1.18, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; glowDot(e.x, e.y, r * 1.5, '#ffd24a', 0.1); }
   FLASH = false;
@@ -1544,7 +1719,8 @@ function drawHUD(run, t) {
   const sz = Math.max(30, Math.min(38, W / 14)); let y = H - sz - 12 - (SAVE.settings.lockSide === 'left' ? 96 : 0);
   let x = 10; for (const w of run.weapons) { const info = itemInfo(w.evo || w.id); iconCanvas(x, y, sz, info, w.level, evoReady(run, w), !!w.evo); x += sz + 7; }
   y -= sz + 10; x = 10;
-  for (const p of run.passives) { const info = itemInfo(p.id); let glow = false; for (const w of run.weapons) if (WEAPONS[w.id].pair === p.id && w.level >= 5 && !w.evo) glow = true; iconCanvas(x, y, sz, info, p.level, glow, false); x += sz + 7; }
+  for (const p of run.passives) { const info = itemInfo(p.id); const glow = p.level >= EVO_MOD_LEVEL && run.weapons.some((w) => !w.evo && w.level >= WEAPON_MAX - 1); iconCanvas(x, y, sz, info, p.level, glow, false); x += sz + 7; }
+  { const ps = Object.keys(run.pk).filter((k) => run.pk[k] > 0); if (ps.length) { y -= Math.round(sz * 0.8) + 10; x = 10; for (const k of ps) { iconCanvas(x, y, Math.round(sz * 0.8), itemInfo(k), run.pk[k], false, false); x += Math.round(sz * 0.8) + 6; } } }
   // boss bar
   for (let i = 0; i < ENEMY_N; i++) { const e = ENEMIES_P[i]; if (e.on && e.boss) { const w2 = Math.min(380, W * 0.7), bx2 = W / 2 - w2 / 2; ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(bx2 - 2, 78, w2 + 4, 14); ctx.fillStyle = '#b03aff'; ctx.fillRect(bx2, 80, w2 * clamp(e.hp / e.max, 0, 1), 10); ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui,sans-serif'; ctx.textAlign = 'center'; ctx.fillText(e.def.name.toUpperCase(), W / 2, 104); break; } }
   // chest arrows
@@ -1617,7 +1793,8 @@ function showMenu() {
   if (G.run && (G.run.over || G.scene === 'end' || G.scene === 'pause')) { G.run = null; }
   droneStop(); setScene('menu');
   const S = SURVIVORS[SAVE.sel] || SURVIVORS.warden;
-  showScr('<h1>HIVE<span>FALL</span></h1><p class="sub">You only move. Your weapons fire on their own. Survive 15 minutes of the swarm, then kill the Matriarch.</p>'
+  showScr('<h1>HIVE<span>FALL</span></h1><p class="sub">You only move. Your weapons fire on their own. Climb sector by sector. Clear each tier&rsquo;s boss for a badge. Reach Extinction and destroy the hive.</p>'
+    + '<p class="sub">' + badgeRow(SAVE.sel) + '</p>'
     + '<button class="btn pri" data-act="play">PLAY as ' + S.name + '</button>'
     + '<button class="btn" data-act="select">Character Select</button><button class="btn" data-act="shop">Armory (Upgrades)</button>'
     + '<button class="btn" data-act="stats">Stats &amp; Achievements</button><button class="btn" data-act="settings">Settings</button>'
@@ -1631,7 +1808,7 @@ function showSelect() {
     h += '<div class="card' + (un ? '' : ' locked') + (SAVE.sel === id ? ' sel' : '') + '" ' + (un ? 'data-act="pick" data-id="' + id + '" tabindex="0"' : '') + '>'
       + '<div class="chead">' + icon({ col: S.col, ab: S.name.slice(0, 2).toUpperCase() }) + '<div><div class="cname">' + (wonAll && un ? '&#9818; ' : '') + S.name + '</div><div class="cdesc">Starts with ' + W.name + '</div></div></div>'
       + '<div class="cdesc">' + S.trait + '</div>'
-      + (un ? '<div class="cpair">Best time: ' + (SAVE.best[id] ? mmss(SAVE.best[id]) : '-') + (SAVE.wins[id] ? ' &middot; WON' : '') + '</div>' : '<div class="lock">Locked: ' + S.unlock + '</div>') + '</div>';
+      + (un ? '<div class="cpair">Best time: ' + (SAVE.best[id] ? mmss(SAVE.best[id]) : '-') + (SAVE.wins[id] ? ' &middot; WON' : '') + '</div><div class="cpair">' + badgeRow(id) + '</div>' : '<div class="lock">Locked: ' + S.unlock + '</div>') + '</div>';
   }
   h += '</div><button class="btn pri" data-act="play">PLAY</button><button class="btn" data-act="menu">Back</button>';
   showScr(h);
@@ -1683,38 +1860,60 @@ function pauseGame() { if (G.scene !== 'play') return; setScene('pause'); pauseV
 function pauseView() {
   const run = G.run; let h = '<h2>Paused</h2><p class="sub">' + mmss(run.t) + ' &middot; Level ' + run.level + ' &middot; ' + run.kills + ' kills</p><div class="build">';
   for (const w of run.weapons) h += icon(itemInfo(w.evo || w.id), false);
-  h += '</div><div class="build">'; for (const p of run.passives) h += icon(itemInfo(p.id), false); h += '</div>';
-  h += '<div class="evolist">'; for (const w of run.weapons) h += '<div><b>' + (w.asc ? ascName(w) : w.evo ? EVOS[w.evo].name : WEAPONS[w.id].name) + '</b><span>' + evoLine(run, w.id) + '</span></div>'; h += '</div>';
+  h += '</div><div class="build">'; for (const p of run.passives) h += icon(itemInfo(p.id), false); for (const k in run.pk) if (run.pk[k] > 0) h += icon(itemInfo(k), false); h += '</div>';
+  h += '<div class="evolist">'; for (const w of run.weapons) h += '<div><b>' + (w.asc ? ascName(w) : w.evo ? evoName(w) : WEAPONS[w.id].name) + '</b><span>' + evoLine(run, w.id) + '</span></div>';
+  for (const p of run.passives) h += '<div><b>' + MODS[p.id].name + ' Lv ' + p.level + '</b><span>' + modText(p.id, p.level) + '</span></div>';
+  for (const k in run.pk) if (run.pk[k] > 0) h += '<div><b>' + PERKS[k].name + ' rank ' + run.pk[k] + '</b><span>' + PERKS[k].text(run.pk[k]) + '</span></div>';
+  { const cb = MOD_COMBOS.filter((x) => pLevel(run, x.a) && pLevel(run, x.b)); for (const x of cb) h += '<div><b>Combo: ' + x.name + '</b><span>' + x.desc + '</span></div>'; } h += '</div>';
   h += '<button class="btn pri" data-act="resume">Resume</button><button class="btn" data-act="pset">Settings</button><button class="btn" data-act="abandon">Abandon Run</button>';
   showScr(h, true);
+}
+function badgeRow(sid, big) {
+  const n = SAVE.tiers[sid] || 0, cols = ['#b6f23a', '#ffd24a', '#ff9a3a', '#ff5a8a', '#ff3a3a']; let h = '<span class="badges">';
+  for (let i = 0; i < 5; i++) h += '<i class="bdg' + (i < n ? ' on' : '') + '" title="' + TIERS[i].name + '" style="' + (i < n ? 'background:' + cols[i] + ';border-color:' + cols[i] : '') + '"></i>';
+  return h + '</span>';
+}
+function openVictory() {
+  const run = G.run; run.victoryPend = false; setScene('pause'); SFX.win();
+  showScr('<p class="big win">HIVE DESTROYED</p><p class="sub">You cleared Extinction with the ' + SURVIVORS[run.sid].name + '. Time ' + mmss(run.t) + ' &middot; ' + run.kills + ' kills.</p>'
+    + '<div class="build">' + run.weapons.map((w) => icon(itemInfo(w.evo || w.id), false)).join('') + '</div><p class="sub">' + badgeRow(run.sid) + '</p>'
+    + '<p class="sub">Badge and title earned. Keep going and the tiers keep climbing, or bank the win now.</p>'
+    + '<button class="btn pri" data-act="resume">Keep fighting (endless)</button><button class="btn" data-act="cashout">Bank the victory &amp; end run</button>');
 }
 function resumeGame() { hideScr(); setScene('play'); G.acc = 0; auInit(); }
 
 // evolution status line for a weapon in the current run (or a weapon you could pick up)
 function evoLine(run, wid) {
-  const W = WEAPONS[wid], E = EVOS[W.evo], P = PASSIVES[W.pair], w = run.weapons.find((x) => x.id === wid);
+  const W = WEAPONS[wid], E = EVOS[W.evo], w = run.weapons.find((x) => x.id === wid);
   if (w && w.evo) {
     if (w.asc) return 'Ascended: ' + ascName(w);
     const nxt = Math.ceil(Math.max(1, run.sector) / ASCEND_EVERY) * ASCEND_EVERY, fm = ascForms(w.evo);
-    return 'Evolved: ' + E.name + '. Ascends with a core from the sector ' + nxt + ' boss' + (fm.length ? ' (' + fm.map((f) => f.name + ': ' + PASSIVES[f.need].name).join(' / ') + ')' : '');
+    return 'Evolved: ' + evoName(w) + '. Ascends with a core from the sector ' + nxt + ' boss' + (fm.length ? ' (' + fm.map((f) => f.name + ': ' + MODS[f.need].name).join(' / ') + ')' : '');
   }
-  const hasP = pLevel(run, W.pair) > 0, lv = w ? w.level : 0;
-  return 'Evolves to ' + E.name + ': ' + (lv >= 5 ? '&#10003; ' : '') + 'weapon Lv ' + lv + '/5 &middot; ' + (hasP ? '&#10003; ' : '') + P.name + ' (any level) &middot; then open a chest';
+  const lv = w ? w.level : 0, best = run.passives.reduce((m, p) => Math.max(m, p.level), 0);
+  return 'Evolves to ' + E.name + ': ' + (lv >= WEAPON_MAX ? '&#10003; ' : '') + 'weapon Lv ' + lv + '/' + WEAPON_MAX + ' &middot; ' + (best >= EVO_MOD_LEVEL ? '&#10003; ' : '') + 'any mod at Lv ' + EVO_MOD_LEVEL + ' (best ' + best + ') &middot; then a chest from sector ' + EVO_MIN_SECTOR;
 }
 function cardView(c, i) {
   let info, tag = '', desc = '', pair = '';
   if (c.type === 'w') {
     info = itemInfo(c.id); tag = c.nw ? '<span class="ctag">NEW</span>' : '<span class="ctag lv">Lv ' + (c.to - 1) + ' &rarr; ' + c.to + '</span>';
-    desc = c.nw ? WEAPONS[c.id].blurb : WEAPONS[c.id].gain[c.to];
-    const w = G.run.weapons.find((x) => x.id === c.id); pair = evoLine(G.run, c.id); if (w && w.level === 4 && pLevel(G.run, WEAPONS[c.id].pair)) pair = 'Max level! Open a chest to evolve into ' + EVOS[WEAPONS[c.id].evo].name + '.';
+    desc = c.nw ? WEAPONS[c.id].blurb : (WEAPONS[c.id].gain[c.to] || '+12% damage, faster' + (c.to === WEAPON_MAX ? ', +1 shot' : ''));
+    pair = evoLine(G.run, c.id);
   } else if (c.type === 'p') {
-    info = itemInfo(c.id); tag = c.nw ? '<span class="ctag">NEW</span>' : '<span class="ctag lv">Lv ' + (c.to - 1) + ' &rarr; ' + c.to + '</span>';
-    desc = PASSIVES[c.id].desc + ' per level'; { const ww = Object.keys(WEAPONS).find((k) => WEAPONS[k].pair === c.id), has = G.run.weapons.some((x) => x.id === ww); pair = 'Evolves ' + WEAPONS[ww].name + ' into ' + EVOS[WEAPONS[ww].evo].name + (has ? ' (you have the weapon)' : ' (needs the weapon)'); const unl = []; for (const ek in ASCEND) for (const f of ASCEND[ek].forms) if (f.need === c.id) unl.push(f.name); if (unl.length) pair += '. Unlocks ascension: ' + unl.join(', '); }
+    info = itemInfo(c.id); const L = c.nw ? 1 : c.to; tag = c.nw ? '<span class="ctag">NEW MOD</span>' : '<span class="ctag lv">Lv ' + (c.to - 1) + ' &rarr; ' + c.to + '</span>';
+    desc = modText(c.id, L) + ' ' + modStatText(c.id) + ' per level.';
+    const held = MOD_COMBOS.filter((x) => (x.a === c.id && pLevel(G.run, x.b)) || (x.b === c.id && pLevel(G.run, x.a)));
+    pair = held.length ? 'Combo: ' + held.map((x) => x.name + ' (' + x.desc + ')').join(' ') : 'Works on every weapon, full strength on the one you evolve with it.';
+  } else if (c.type === 'pk') {
+    info = itemInfo(c.id); tag = c.nw ? '<span class="ctag">NEW PERK</span>' : '<span class="ctag lv">Rank ' + (c.to - 1) + ' &rarr; ' + c.to + '</span>'; desc = PERKS[c.id].text(c.to); pair = 'Perks: ' + Object.keys(G.run.pk).filter((k) => G.run.pk[k] > 0).length + '/' + PERK_CAP + ' held';
+  } else if (c.type === 'att') {
+    const w = G.run.weapons.find((x) => x.id === c.id), E = EVOS[WEAPONS[c.id].evo];
+    info = { col: E.col, ab: MODS[c.mod].ab, name: MODS[c.mod].adj + ' ' + E.name }; tag = '<span class="ctag">EVOLVE</span>'; desc = E.desc; pair = 'Attuned to ' + MODS[c.mod].name + ' (Lv ' + pLevel(G.run, c.mod) + '): ' + modText(c.mod, pLevel(G.run, c.mod)).replace(/\.$/, '') + ' - at full strength on this weapon.';
   } else if (c.type === 'asc') {
     const w = G.run.weapons.find((x) => x.id === c.id), E = EVOS[w.evo], forms = ascForms(w.evo), f = forms.find((x) => x.id === c.form);
-    info = { col: E.col, ab: E.name.split(' ').map((t) => t[0]).join('').slice(0, 2), name: f ? f.name : E.name + ' II' }; tag = '<span class="ctag">ASCEND</span>';
+    info = { col: E.col, ab: E.name.split(' ').map((t) => t[0]).join('').slice(0, 2), name: f ? f.name : evoName(w) + ' II' }; tag = '<span class="ctag">ASCEND</span>';
     desc = f ? f.desc : 'Stronger and faster. +40% damage, quicker, more shots.';
-    const lock = forms.filter((x) => x.id !== c.form && pLevel(G.run, x.need) === 0).map((x) => x.name + ' (needs ' + PASSIVES[x.need].name + ')');
+    const lock = forms.filter((x) => x.id !== c.form && (pLevel(G.run, x.need) === 0 || x.need === w.att)).map((x) => x.name + ' (needs ' + MODS[x.need].name + ')');
     pair = lock.length ? 'Locked: ' + lock.join(', ') : '';
   } else if (c.type === 'wp') { const wp = WORLD_PERKS[c.id]; info = { col: wp.col, ab: wp.ab, name: wp.name }; desc = wp.desc; tag = '<span class="ctag">PERK</span>'; }
   else if (c.id === 'feast') { info = { col: '#e8f6e0', ab: '+HP', name: 'Field Rations' }; info.name = 'Field Rations'; desc = 'Heal ' + TUNING.feastHeal + ' HP.'; }
@@ -1730,6 +1929,11 @@ function openPerk() {
   const run = G.run; run.perkMode = true; run.perkPend = false;
   G.scene = 'levelup'; setScene('levelup'); SFX.level(); run.offer = drawPerks(run); banishMode = false; levelView();
 }
+function openAttune() {
+  const run = G.run, w = run.attPend; run.attPend = null; if (!w || w.evo) return;
+  run.attMode = true; run.attW = w; run.offer = evoMods(run).map((p) => ({ type: 'att', id: w.id, mod: p.id }));
+  G.scene = 'levelup'; setScene('levelup'); SFX.chest(); levelView();
+}
 function openAscend() {
   const run = G.run; run.ascMode = true; run.offer = ascCards(run);
   if (!run.offer.length) { run.ascMode = false; return false; }
@@ -1737,12 +1941,16 @@ function openAscend() {
 }
 function levelView() {
   const run = G.run;
+  if (run.attMode) {
+    let h = '<h2>EVOLVE ' + WEAPONS[run.attW.id].name.toUpperCase() + '</h2><p class="sub">Choose the mod this evolution is built around. It gets full strength on this weapon.</p><div class="cards">';
+    run.offer.forEach((c, i) => { h += cardView(c, i); }); h += '</div>'; showScr(h, true); return;
+  }
   if (run.ascMode) {
     let h = '<h2>ASCENSION</h2><p class="sub">Your core upgrades one evolved weapon. Forms depend on the passives you hold.</p><div class="cards">';
     run.offer.forEach((c, i) => { h += cardView(c, i); }); h += '</div>'; showScr(h, true); return;
   }
   if (run.perkMode) {
-    let h = '<h2>' + (TUNING.endless ? 'SECTOR ' + run.sector + ' CLEARED' : 'WORLD ' + (run.world + 1) + ' CLEARED') + '</h2><p class="sub">Choose a perk for the rest of the run</p><div class="cards">';
+    let h = '<h2>' + (TUNING.endless ? 'SECTOR ' + run.sector + ' CLEARED' : 'WORLD ' + (run.world + 1) + ' CLEARED') + '</h2><p class="sub">Choose a perk (hold up to ' + PERK_CAP + ')</p><div class="cards">';
     run.offer.forEach((c, i) => { h += cardView(c, i); }); h += '</div>'; showScr(h, true); return;
   }
   let h = '<h2>LEVEL UP &middot; ' + run.level + '</h2><p class="sub">' + (banishMode ? 'Tap a card to banish it from this run' : 'Pick one upgrade') + (run.pend > 1 ? ' &middot; ' + (run.pend - 1) + ' more waiting' : '') + '</p><div class="cards">';
@@ -1760,6 +1968,7 @@ function finishPick() {
 }
 function chooseCard(i) {
   const run = G.run; if (!run || G.scene !== 'levelup' || !run.offer) return; const c = run.offer[i]; if (!c) return;
+  if (run.attMode) { SFX.click(); evolve(run.attW, c.mod); run.attMode = false; hideScr(); setScene('play'); G.acc = 0; return; }
   if (run.ascMode) { SFX.click(); applyCard(run, c); run.ascMode = false; if (run.cores > 0 && openAscend()) return; hideScr(); setScene('play'); G.acc = 0; return; }
   if (run.perkMode) { SFX.click(); applyCard(run, c); run.perkMode = false; if (run.cores > 0 && openAscend()) return; hideScr(); setScene('play'); G.acc = 0; return; }
   if (banishMode) { if (c.type === 'f') return; run.banished[c.type + c.id] = true; run.banishes--; banishMode = false; run.offer = drawOffer(run); levelView(); SFX.click(); return; }
@@ -1768,9 +1977,9 @@ function chooseCard(i) {
 
 function showEnd() {
   const run = G.run; setScene('end'); const win = run.win, S = SURVIVORS[run.sid];
-  let h = '<p class="big ' + (win ? 'win' : 'lose') + '">' + 'YOU FELL' + '</p>'
+  let h = '<p class="big ' + (win ? 'win' : 'lose') + '">' + (win ? 'HIVE DESTROYED' : 'YOU FELL') + '</p>'
     + '<p class="sub">' + ('Sector ' + run.sector + ' reached. +' + run.sector * TUNING.endlessCfg.depthCoins + ' sector credits.') + '</p>'
-    + '<table class="st"><tr><td>Survivor</td><td>' + S.name + '</td></tr><tr><td>Time survived</td><td>' + mmss(run.t) + '</td></tr><tr><td>Sector reached</td><td>' + run.sector + ' &middot; ' + tierName(tierOf(run.sector)) + ' &middot; best ' + SAVE.stats.bestDepth + '</td></tr><tr><td>Level</td><td>' + run.level + '</td></tr><tr><td>Kills</td><td>' + run.kills + '</td></tr>'
+    + '<table class="st"><tr><td>Survivor</td><td>' + S.name + '</td></tr><tr><td>Time survived</td><td>' + mmss(run.t) + '</td></tr><tr><td>Sector reached</td><td>' + run.sector + ' &middot; ' + tierName(tierOf(run.sector)) + ' &middot; best ' + SAVE.stats.bestDepth + '</td></tr>' + (run.clearedTiers && run.clearedTiers.length ? '<tr><td>Tiers cleared</td><td>' + run.clearedTiers.map((t) => tierName(t)).join(', ') + '</td></tr>' : '') + '<tr><td>Level</td><td>' + run.level + '</td></tr><tr><td>Kills</td><td>' + run.kills + '</td></tr>'
     + '<tr><td>Credits earned</td><td>' + run.coins + '</td></tr><tr><td>Evolutions</td><td>' + run.evos + '</td></tr><tr><td>Damage dealt</td><td>' + Math.round(run.dmgDealt).toLocaleString() + '</td></tr></table><div class="build">';
   for (const w of run.weapons) h += icon(itemInfo(w.evo || w.id), false); h += '</div><div class="build">'; for (const p of run.passives) h += icon(itemInfo(p.id), false);
   h += '</div><button class="btn pri" data-act="again" id="againBtn">Run Again</button>' + '' + '<button class="btn" data-act="menu">Menu</button>';
@@ -1797,14 +2006,15 @@ $('ui').addEventListener('click', (ev) => {
     case 'theme': SAVE.settings.theme = SAVE.settings.theme === 'dawn' ? 'dusk' : 'dawn'; writeSave(); showSettings(); break;
     case 'reset': if (resetArm > G.realT) { SAVE = defaultSave(); writeSave(); resetArm = 0; auVol(); applyLockSide(); toast('Save erased'); showSettings(); } else { resetArm = G.realT + 4; showSettings(); } break;
     case 'resume': resumeGame(); break;
+    case 'cashout': resumeGame(); endRun(true); break;
     case 'pset': showSettings('pause'); break;
     case 'backpause': pauseView(); break;
     case 'abandon': { hideScr(); endRun(false); break; }
     case 'again': startRun(); break;
     case 'card': chooseCard(parseInt(el.getAttribute('data-i'), 10)); break;
-    case 'reroll': { if (G.run.perkMode || G.run.ascMode) break; const run = G.run; if (run.rerolls > 0) { run.rerolls--; run.offer = drawOffer(run); banishMode = false; levelView(); } break; }
-    case 'banish': { if (G.run.perkMode || G.run.ascMode) break; const run = G.run; if (run.banishes > 0) { banishMode = !banishMode; levelView(); } break; }
-    case 'skip': { if (G.run.perkMode || G.run.ascMode) break; const run = G.run; applyCard(run, { type: 'skip' }); finishPick(); break; }
+    case 'reroll': { if (G.run.perkMode || G.run.ascMode || G.run.attMode) break; const run = G.run; if (run.rerolls > 0) { run.rerolls--; run.offer = drawOffer(run); banishMode = false; levelView(); } break; }
+    case 'banish': { if (G.run.perkMode || G.run.ascMode || G.run.attMode) break; const run = G.run; if (run.banishes > 0) { banishMode = !banishMode; levelView(); } break; }
+    case 'skip': { if (G.run.perkMode || G.run.ascMode || G.run.attMode) break; const run = G.run; applyCard(run, { type: 'skip' }); finishPick(); break; }
   }
 });
 scr.addEventListener('input', (ev) => {
@@ -1867,12 +2077,12 @@ function frame(ts) {
     G.acc += rdt * scale; let n = 0;
     while (G.acc >= STEP && n < 3 && G.scene === 'play' && !run.over) { stepSim(STEP); G.acc -= STEP; n++; }
     if (G.acc > STEP * 3) G.acc = 0;
-    if (G.scene === 'play' && !run.over && run.perkPend) openPerk();
+    if (G.scene === 'play' && !run.over && run.victoryPend) openVictory(); else if (G.scene === 'play' && !run.over && run.attPend) openAttune(); else if (G.scene === 'play' && !run.over && run.perkPend) openPerk();
     else if (G.scene === 'play' && !run.over && run.pend > 0) openLevelUp();
   }
   render();
   if (saveDirty && G.realT - lastSave > 1.5) { writeSave(); lastSave = G.realT; }
 }
 resize(); showMenu(); requestAnimationFrame(frame);
-window.__hf = { G, SAVE: () => SAVE, TUNING, stepSim, newRun, startRun, ENEMIES_P, ITEM_P, PROJ_P, giveXP, applyCard, addWeapon, weaponStats, drawOffer, drawPerks, openPerk, openAscend, ascendWeapon, ascCards, evolve, endRun, spawnEnemy, killEnemy, clockAt, recalc, mmss, openLevelUp, chooseCard };
+window.__hf = { G, SAVE: () => SAVE, TUNING, stepSim, newRun, startRun, ENEMIES_P, ITEM_P, PROJ_P, giveXP, applyCard, addWeapon, weaponStats, drawOffer, drawPerks, openPerk, openAscend, openAttune, evoReady, evoMods, hurtPlayer, recalc, ascCards,  evoName, modText, MODS, PERKS, ascendWeapon, ascCards, evolve, endRun, spawnEnemy, killEnemy, clockAt, recalc, mmss, openLevelUp, chooseCard };
 </script></body></html>
